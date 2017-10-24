@@ -1,0 +1,117 @@
+use std::str::FromStr;
+use ast::{Statement, Definition, Expr, Scalar, Point, Line, SIdent, PIdent, LIdent, Ident};
+
+grammar;
+
+Comma<T>: Vec<T> = {
+    <v:(<T> ",")*> <e:T?> => match e {
+        None => v,
+        Some(e) => {
+            let mut v = v;
+            v.push(e);
+            v
+        },
+    }
+};
+
+pub Statement: Statement = {
+    <Definition> ";" => Statement::Definition(<>),
+};
+
+Definition: Definition = {
+    <SIdent> "=" <SExpr> => Definition::Scalar(<>),
+    <PIdent> "=" <PExpr> => Definition::Point(<>),
+    <LIdent> "=" <LExpr> => Definition::Line(<>),
+    <SIdent> "[" <Comma<Ident>> "]" "=" <SExpr> => Definition::ScalarMacro(<>),
+    <PIdent> "[" <Comma<Ident>> "]" "=" <PExpr> => Definition::PointMacro(<>),
+    <LIdent> "[" <Comma<Ident>> "]" "=" <LExpr> => Definition::LineMacro(<>),
+};
+
+Expr: Expr = {
+    SExpr => Expr::Scalar(<>),
+    PExpr => Expr::Point(<>),
+    LExpr => Expr::Line(<>),
+};
+
+SExpr: Scalar = {
+    <SExpr> "<" <SArith> => Scalar::lt(<>),
+    <SExpr> "<=" <SArith> => Scalar::le(<>),
+    <l:SExpr> ">" <r:SArith> => Scalar::lt(r, l),
+    <l:SExpr> ">=" <r:SArith> => Scalar::le(r, l),
+    <SExpr> "==" <SArith> => Scalar::eq(<>),
+    SArith,
+};
+
+SArith: Scalar = {
+    <SArith> "+" <SFactor> => Scalar::add(<>),
+    <SArith> "-" <SFactor> => Scalar::subtract(<>),
+    SFactor,
+};
+
+SFactor: Scalar = {
+    <SFactor> "*" <STerm> => Scalar::multiply(<>),
+    <SFactor> "/" <STerm> => Scalar::divide(<>),
+    STerm,
+};
+
+STerm: Scalar = {
+    "-" <STerm> => Scalar::negative(<>),
+    Number => Scalar::Number(<>),
+    "(" <SExpr> ")",
+    SIdent => Scalar::Ident(<>),
+    <SIdent> "[" <Comma<Expr>> "]" => Scalar::Macro(<>),
+};
+
+PExpr: Point = {
+    <PExpr> "+" <PFactor> => Point::add(<>),
+    <PExpr> "-" <PFactor> => Point::subtract(<>),
+    PFactor,
+};
+
+PFactor: Point = {
+    <s:SFactor> "*" <p:PTerm> => Point::multiply(p, s),
+    <PFactor> "*" <STerm> => Point::multiply(<>),
+    <PFactor> "/" <STerm> => Point::divide(<>),
+    <LTerm> "&" <LTerm> => Point::intersection(<>),
+    PTerm,
+};
+
+PTerm: Point = {
+    "(" <SExpr> "," <SExpr> ")" => Point::Pair(<>),
+    "-" <PTerm> => Point::negative(<>),
+    "(" <PExpr> ")",
+    PIdent => Point::Ident(<>),
+    <PIdent> "[" <Comma<Expr>> "]" => Point::Macro(<>),
+};
+
+LExpr: Line = {
+    <LExpr> "+" <PFactor> => Line::add(<>),
+    <LExpr> "-" <PFactor> => Line::subtract(<>),
+    <LExpr> "|" <PFactor> => Line::parallel(<>),
+    <LExpr> ":" <PFactor> => Line::perpendicular(<>),
+    LFactor,
+};
+
+LFactor: Line = {
+    LTerm,
+};
+
+LTerm: Line = {
+    <PTerm> "--" <PTerm> => Line::between(<>),
+    <PTerm> "->" <PTerm> => Line::vector(<>),
+    "(" <LExpr> ")",
+    <LIdent> => Line::Ident(<>),
+    <LIdent> "[" <Comma<Expr>> "]" => Line::Macro(<>),
+};
+
+pub Ident: Ident = {
+    SIdent => Ident::Scalar(<>),
+    PIdent => Ident::Point(<>),
+    LIdent => Ident::Line(<>),
+};
+
+SIdent: SIdent = r"\$\w+" => SIdent::from_str(<>).unwrap();
+PIdent: PIdent = r"@\w+"  => PIdent::from_str(<>).unwrap();
+LIdent: LIdent = r"!\w+"  => LIdent::from_str(<>).unwrap();
+
+Number: f64 = r"[0-9]+(\.[0-9]+)?" => f64::from_str(<>).unwrap();

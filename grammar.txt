@@ -1,0 +1,54 @@
+Program := Statement*
+
+Statement := Definition
+           | Command
+
+Definition := S_IDENT "=" SExpr ";"
+            | P_IDENT "=" PExpr ";"
+            | S_IDENT "," S_IDENT "=" PExpr ";"
+            | L_IDENT "=" LExpr ";"
+
+S_IDENT := r"\$\w+"
+P_IDENT := r"@\w+"
+L_IDENT := r"!\w+"
+NUMBER := r"[0-9]+(\.[0-9]+)?"
+
+SExpr := SExpr "+" SFactor
+       | SExpr "-" SFactor
+       | SFactor
+
+SFactor := SFactor "*" STerm
+         | SFactor "/" STerm
+         | STerm
+
+STerm := NUMBER
+       | "(" SExpr ")"
+       | S_IDENT
+
+PExpr := PExpr "+" PFactor
+       | PExpr "-" PFactor
+       | PFactor
+
+PFactor := SFactor "*" PTerm
+         | PFactor "*" STerm
+         | PFactor "/" STerm
+         | LTerm "&" LTerm
+         | PTerm
+
+PTerm := STerm "," STerm
+       | "(" PExpr ")
+       | P_IDENT
+
+LExpr := LExpr "+" PFactor
+       | LExpr "-" PFactor
+       | LExpr "||" PFactor
+       | LExpr "_|_" PFactor
+       | LFactor
+
+LFactor := LTerm
+
+LTerm := PTerm "->" PTerm
+       | PTerm "-+" PTerm
+       | "(" LExpr ")"
+       | L_IDENT
+

@@ -1,0 +1,52 @@
+!st[$x] => (0,1750 - 7*$x) -> (1,0);
+
+!11av = (105,0) -> (0,1);
+!10av = !11av | (110,0);
+!8av =  !11av | (220,0);
+!7av =  !11av | (330,0);
+!6av =  !11av | (440,0);
+!5av =  !11av | (510,0);
+!4av =  !11av | (550,0);
+!2av =  !11av | (600,0);
+
+!houston = !st[0];
+
+@bdwy_181st = !11av & !st[181];
+@bdwy_107st = !11av & !st[107];
+@bdwy_104st = !10av & !st[104];
+@bdwy_77st  = !10av & !st[77];
+@bdwy_59st  = !8av  & !st[59];
+@times_sq   = !7av  & !st[45];
+@bdwy_45st  = @times_sq;
+@bdwy_34st  = !6av  & !st[34];
+@bdwy_27st  = !5av  & !st[27];
+@bdwy_14st  = !4av  & !st[14];
+
+@8av_145st = !8av & !st[145];
+@8av_53st  = !8av & !st[53];
+@8av_50st  = !8av & !st[50];
+@8av_14st  = !8av & !st[12];
+@8av_4st   = !6av & !st[8];
+
+@7av_63st = !7av & !st[63];
+@7av_60st = !7av & !st[60];
+
+@6av_63st = !6av & !st[63];
+@6av_53st = !6av & !st[53];
+@6av_4st  = !6av & !houston;
+
+@63st_2av = !st[63] & !2av;
+@60st_2av = !st[60] & !2av;
+@53st_2av = !st[53] & !2av;
+
+@11av_34st = !11av & !st[34];
+@11av_42st = !11av & !st[42];
+@42st_2av  = !st[42] & !2av;
+
+@houston_2av = !houston & !2av;
+
+@greenwich_rector = !7av & !st[-80];
+
+@south_ferry = !2av & !st[-90];
+
+@church_chambers = !6av & !st[-50];
