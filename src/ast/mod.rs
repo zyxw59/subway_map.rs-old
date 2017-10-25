@@ -3,169 +3,15 @@ use std::str::FromStr;
 use regex::Regex;
 use math;
 
-#[derive(Clone, Debug)]
-pub struct Variables {
-    scalars: HashMap<SIdent, math::Scalar>,
-    points: HashMap<PIdent, math::Point>,
-    lines: HashMap<LIdent, math::Line>,
-    scalar_macros: HashMap<SIdent, Macro<Scalar>>,
-    point_macros: HashMap<PIdent, Macro<Point>>,
-    line_macros: HashMap<LIdent, Macro<Line>>,
-}
+mod errors;
 
-impl Variables {
-    pub fn new() -> Variables {
-        Variables {
-            scalars: HashMap::new(),
-            points: HashMap::new(),
-            lines: HashMap::new(),
-            scalar_macros: HashMap::new(),
-            point_macros: HashMap::new(),
-            line_macros: HashMap::new(),
-        }
-    }
-
-    pub fn get(&self, id: &Ident) -> Option<math::Expr> {
-        match *id {
-            Ident::Scalar(ref id) => self.scalars.get(&id).map(|x| math::Expr::Scalar(*x)),
-            Ident::Point(ref id) => self.points.get(&id).map(|x| math::Expr::Point(*x)),
-            Ident::Line(ref id) => self.lines.get(&id).map(|x| math::Expr::Line(*x)),
-        }
-    }
-}
-
-trait Eval {
-    type Output;
-
-    fn eval(&self, vars: &Variables) -> Self::Output;
-}
+pub use self::errors::IdentError;
 
 #[derive(Clone, Debug)]
 pub enum Ident {
     Scalar(SIdent),
     Point(PIdent),
     Line(LIdent),
-}
-
-#[derive(Clone, Debug)]
-pub enum Statement {
-    Definition(Definition),
-}
-
-impl Statement {
-    pub fn eval(self, vars: &mut Variables) {
-        match self {
-            Statement::Definition(d) => d.eval(vars),
-        };
-    }
-}
-
-#[derive(Clone, Debug)]
-pub enum Definition {
-    Scalar(SIdent, Scalar),
-    Point(PIdent, Point),
-    Line(LIdent, Line),
-    ScalarMacro(SIdent, Vec<Ident>, Scalar),
-    PointMacro(PIdent, Vec<Ident>, Point),
-    LineMacro(LIdent, Vec<Ident>, Line),
-}
-
-impl Definition {
-    pub fn eval(self, vars: &mut Variables) {
-        use self::Definition::*;
-        match self {
-            Scalar(id, val) => {
-                let val = val.eval(vars);
-                vars.scalars.insert(id, val);
-            },
-            Point(id, val) => {
-                let val = val.eval(vars);
-                vars.points.insert(id, val);
-            },
-            Line(id, val) => {
-                let val = val.eval(vars);
-                vars.lines.insert(id, val);
-            },
-            ScalarMacro(id, args, body) => {
-                vars.scalar_macros.insert(id, Macro{args, body});
-            },
-            PointMacro(id, args, body) => {
-                vars.point_macros.insert(id, Macro{args, body});
-            },
-            LineMacro(id, args, body) => {
-                vars.line_macros.insert(id, Macro{args, body});
-            },
-        }
-    }
-}
-
-#[derive(Clone, Debug)]
-struct Macro<T: Eval> {
-    args: Vec<Ident>,
-    body: T,
-}
-
-impl<T: Eval> Macro<T> {
-    pub fn expand(&self, args: &Vec<Expr>, vars: &Variables) -> T::Output {
-        let mut locals = Variables::new();
-        if args.len() != self.args.len() {
-            panic!("Incorrect number of arguments to macro (got {}, expected {})",
-            args.len(), self.args.len());
-        }
-        for (id, val) in self.args.iter().zip(args.iter()) {
-            match *id {
-                Ident::Scalar(ref id) => {
-                    if let Expr::Scalar(ref val) = *val {
-                        locals.scalars.insert(id.clone(), val.eval(vars));
-                    } else {
-                        panic!("Argument {:?} is not a scalar", val);
-                    }
-                }
-                Ident::Point(ref id) => {
-                    if let Expr::Point(ref val) = *val {
-                        locals.points.insert(id.clone(), val.eval(vars));
-                    } else {
-                        panic!("Argument {:?} is not a point", val);
-                    }
-                }
-                Ident::Line(ref id) => {
-                    if let Expr::Line(ref val) = *val {
-                        locals.lines.insert(id.clone(), val.eval(vars));
-                    } else {
-                        panic!("Argument {:?} is not a line", val);
-                    }
-                }
-            }
-        }
-        self.body.eval(&locals)
-    }
-}
-
-#[derive(Clone, Debug)]
-pub enum Expr {
-    Scalar(Scalar),
-    Point(Point),
-    Line(Line),
-}
-
-impl Eval for Expr {
-    type Output = math::Expr;
-
-    fn eval(&self, vars: &Variables) -> math::Expr {
-        use self::Expr::*;
-        match *self {
-            Scalar(ref x) => math::Expr::Scalar(x.eval(vars)),
-            Point(ref x) => math::Expr::Point(x.eval(vars)),
-            Line(ref x) => math::Expr::Line(x.eval(vars)),
-        }
-    }
-}
-
-#[derive(Clone, Debug)]
-pub enum IdentError {
-    Scalar(String),
-    Point(String),
-    Line(String),
 }
 
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
@@ -179,7 +25,7 @@ impl FromStr for SIdent {
             static ref RE: Regex = Regex::new(r"\$(\w+)").unwrap();
         }
         RE.captures(s).map_or(
-            Err(IdentError::Scalar(String::from(s))),
+            Err(IdentError::new(s, "Scalar")),
             |caps| Ok(SIdent(String::from(caps.get(1).unwrap().as_str()))))
     }
 }
@@ -195,7 +41,7 @@ impl FromStr for PIdent {
             static ref RE: Regex = Regex::new(r"@(\w+)").unwrap();
         }
         RE.captures(s).map_or(
-            Err(IdentError::Point(String::from(s))),
+            Err(IdentError::new(s, "Point")),
             |caps| Ok(PIdent(String::from(caps.get(1).unwrap().as_str()))))
     }
 }
@@ -211,11 +57,40 @@ impl FromStr for LIdent {
             static ref RE: Regex = Regex::new(r"!(\w+)").unwrap();
         }
         RE.captures(s).map_or(
-            Err(IdentError::Line(String::from(s))),
+            Err(IdentError::new(s, "Line")),
             |caps| Ok(LIdent(String::from(caps.get(1).unwrap().as_str()))))
     }
 }
 
+trait Eval {
+    type Output;
+
+    type Ident;
+
+    fn eval(&self, vars: &Variables) -> Self::Output;
+}
+
+#[derive(Clone, Debug)]
+pub enum Expr {
+    Scalar(Scalar),
+    Point(Point),
+    Line(Line),
+}
+
+impl Eval for Expr {
+    type Output = math::Expr;
+
+    type Ident = Ident;
+
+    fn eval(&self, vars: &Variables) -> math::Expr {
+        use self::Expr::*;
+        match *self {
+            Scalar(ref x) => math::Expr::Scalar(x.eval(vars)),
+            Point(ref x) => math::Expr::Point(x.eval(vars)),
+            Line(ref x) => math::Expr::Line(x.eval(vars)),
+        }
+    }
+}
 
 #[derive(Clone, Debug)]
 pub enum Scalar {
@@ -233,6 +108,8 @@ pub enum Scalar {
 
 impl Eval for Scalar {
     type Output = math::Scalar;
+
+    type Ident = SIdent;
 
     fn eval(&self, vars: &Variables) -> math::Scalar {
         use self::Scalar::*;
@@ -335,6 +212,8 @@ pub enum Point {
 impl Eval for Point {
     type Output = math::Point;
 
+    type Ident = PIdent;
+
     fn eval(&self, vars: &Variables) -> math::Point {
         use self::Point::*;
         match *self {
@@ -402,6 +281,8 @@ pub enum Line {
 impl Eval for Line {
     type Output = math::Line;
 
+    type Ident = LIdent;
+
     fn eval(&self, vars: &Variables) -> math::Line {
         use self::Line::*;
         match *self {
@@ -468,5 +349,131 @@ impl Line {
 
     pub fn between(a: Point, b: Point) -> Self {
         Line::Vector(a.clone(), Point::subtract(b, a))
+    }
+}
+
+#[derive(Clone, Debug)]
+struct Macro<T: Eval> {
+    id: T::Ident,
+    args: Vec<Ident>,
+    body: T,
+}
+
+impl<T: Eval> Macro<T> {
+    pub fn expand(&self, args: &Vec<Expr>, vars: &Variables) -> T::Output {
+        let mut locals = Variables::new();
+        if args.len() != self.args.len() {
+            panic!("Incorrect number of arguments to macro (got {}, expected {})",
+            args.len(), self.args.len());
+        }
+        for (id, val) in self.args.iter().zip(args.iter()) {
+            match *id {
+                Ident::Scalar(ref id) => {
+                    if let Expr::Scalar(ref val) = *val {
+                        locals.scalars.insert(id.clone(), val.eval(vars));
+                    } else {
+                        panic!("Argument {:?} is not a scalar", val);
+                    }
+                }
+                Ident::Point(ref id) => {
+                    if let Expr::Point(ref val) = *val {
+                        locals.points.insert(id.clone(), val.eval(vars));
+                    } else {
+                        panic!("Argument {:?} is not a point", val);
+                    }
+                }
+                Ident::Line(ref id) => {
+                    if let Expr::Line(ref val) = *val {
+                        locals.lines.insert(id.clone(), val.eval(vars));
+                    } else {
+                        panic!("Argument {:?} is not a line", val);
+                    }
+                }
+            }
+        }
+        self.body.eval(&locals)
+    }
+}
+
+#[derive(Clone, Debug)]
+pub enum Definition {
+    Scalar(SIdent, Scalar),
+    Point(PIdent, Point),
+    Line(LIdent, Line),
+    ScalarMacro(SIdent, Vec<Ident>, Scalar),
+    PointMacro(PIdent, Vec<Ident>, Point),
+    LineMacro(LIdent, Vec<Ident>, Line),
+}
+
+impl Definition {
+    pub fn eval(self, vars: &mut Variables) {
+        use self::Definition::*;
+        match self {
+            Scalar(id, val) => {
+                let val = val.eval(vars);
+                vars.scalars.insert(id, val);
+            },
+            Point(id, val) => {
+                let val = val.eval(vars);
+                vars.points.insert(id, val);
+            },
+            Line(id, val) => {
+                let val = val.eval(vars);
+                vars.lines.insert(id, val);
+            },
+            ScalarMacro(id, args, body) => {
+                vars.scalar_macros.insert(id.clone(), Macro{id, args, body});
+            },
+            PointMacro(id, args, body) => {
+                vars.point_macros.insert(id.clone(), Macro{id, args, body});
+            },
+            LineMacro(id, args, body) => {
+                vars.line_macros.insert(id.clone(), Macro{id, args, body});
+            },
+        }
+    }
+}
+
+#[derive(Clone, Debug)]
+pub enum Statement {
+    Definition(Definition),
+}
+
+impl Statement {
+    pub fn eval(self, vars: &mut Variables) {
+        match self {
+            Statement::Definition(d) => d.eval(vars),
+        };
+    }
+}
+
+#[derive(Clone, Debug)]
+pub struct Variables {
+    scalars: HashMap<SIdent, math::Scalar>,
+    points: HashMap<PIdent, math::Point>,
+    lines: HashMap<LIdent, math::Line>,
+    scalar_macros: HashMap<SIdent, Macro<Scalar>>,
+    point_macros: HashMap<PIdent, Macro<Point>>,
+    line_macros: HashMap<LIdent, Macro<Line>>,
+}
+
+impl Variables {
+    pub fn new() -> Variables {
+        Variables {
+            scalars: HashMap::new(),
+            points: HashMap::new(),
+            lines: HashMap::new(),
+            scalar_macros: HashMap::new(),
+            point_macros: HashMap::new(),
+            line_macros: HashMap::new(),
+        }
+    }
+
+    pub fn get(&self, id: &Ident) -> Option<math::Expr> {
+        match *id {
+            Ident::Scalar(ref id) => self.scalars.get(&id).map(|x| math::Expr::Scalar(*x)),
+            Ident::Point(ref id) => self.points.get(&id).map(|x| math::Expr::Point(*x)),
+            Ident::Line(ref id) => self.lines.get(&id).map(|x| math::Expr::Line(*x)),
+        }
     }
 }
