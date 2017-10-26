@@ -122,8 +122,8 @@ impl Eval for Scalar {
             LessEq(ref a, ref b) => if a.eval(vars) <= b.eval(vars) {1.0} else {0.0},
             Equal(ref a, ref b) => if a.eval(vars) == b.eval(vars) {1.0} else {0.0},
             Number(x) => x,
-            Ident(ref id) => *vars.scalars.get(id).unwrap(),
-            Macro(ref id, ref args) => vars.scalar_macros.get(id).unwrap().expand(args, vars),
+            Ident(ref id) => *vars.get_scalar(id).unwrap(),
+            Macro(ref id, ref args) => vars.get_scalar_macro(id).unwrap().expand(args, vars),
         }
     }
 }
@@ -223,8 +223,8 @@ impl Eval for Point {
             Divide(ref a, ref n) => a.eval(vars) / n.eval(vars),
             Pair(ref x, ref y) => math::Point(x.eval(vars), y.eval(vars)),
             Intersection(ref a, ref b) => a.eval(vars).intersect(b.eval(vars)),
-            Ident(ref id) => *vars.points.get(id).unwrap(),
-            Macro(ref id, ref args) => vars.point_macros.get(id).unwrap().expand(args, vars),
+            Ident(ref id) => *vars.get_point(id).unwrap(),
+            Macro(ref id, ref args) => vars.get_point_macro(id).unwrap().expand(args, vars),
         }
     }
 }
@@ -293,8 +293,8 @@ impl Eval for Line {
                 origin: o.eval(vars),
                 vector: v.eval(vars),
             },
-            Ident(ref id) => *vars.lines.get(id).unwrap(),
-            Macro(ref id, ref args) => vars.line_macros.get(id).unwrap().expand(args, vars),
+            Ident(ref id) => *vars.get_line(id).unwrap(),
+            Macro(ref id, ref args) => vars.get_line_macro(id).unwrap().expand(args, vars),
         }
     }
 }
@@ -361,7 +361,7 @@ struct Macro<T: Eval> {
 
 impl<T: Eval> Macro<T> {
     pub fn expand(&self, args: &Vec<Expr>, vars: &Variables) -> T::Output {
-        let mut locals = Variables::new();
+        let mut locals = Variables::with_globals(vars);
         if args.len() != self.args.len() {
             panic!("Incorrect number of arguments to macro (got {}, expected {})",
             args.len(), self.args.len());
@@ -370,21 +370,21 @@ impl<T: Eval> Macro<T> {
             match *id {
                 Ident::Scalar(ref id) => {
                     if let Expr::Scalar(ref val) = *val {
-                        locals.scalars.insert(id.clone(), val.eval(vars));
+                        locals.insert_scalar(id.clone(), val);
                     } else {
                         panic!("Argument {:?} is not a scalar", val);
                     }
                 }
                 Ident::Point(ref id) => {
                     if let Expr::Point(ref val) = *val {
-                        locals.points.insert(id.clone(), val.eval(vars));
+                        locals.insert_point(id.clone(), val);
                     } else {
                         panic!("Argument {:?} is not a point", val);
                     }
                 }
                 Ident::Line(ref id) => {
                     if let Expr::Line(ref val) = *val {
-                        locals.lines.insert(id.clone(), val.eval(vars));
+                        locals.insert_line(id.clone(), val);
                     } else {
                         panic!("Argument {:?} is not a line", val);
                     }
@@ -448,17 +448,36 @@ impl Statement {
 }
 
 #[derive(Clone, Debug)]
-pub struct Variables {
+pub struct Variables<'a> {
     scalars: HashMap<SIdent, math::Scalar>,
     points: HashMap<PIdent, math::Point>,
     lines: HashMap<LIdent, math::Line>,
     scalar_macros: HashMap<SIdent, Macro<Scalar>>,
     point_macros: HashMap<PIdent, Macro<Point>>,
     line_macros: HashMap<LIdent, Macro<Line>>,
+    globals: Option<&'a Variables<'a>>,
 }
 
-impl Variables {
-    pub fn new() -> Variables {
+macro_rules! get_typed {
+    ($f:ident, $m:ident, $id_t:ty, $out_t:ty) => {
+        fn $f(&self, id: &$id_t) -> Option<&$out_t> {
+            self.$m.get(&id).or_else(
+                || self.globals.as_ref().and_then(|g| g.$f(id)))
+        }
+    }
+}
+
+macro_rules! insert_typed {
+    ($f:ident, $m:ident, $id_t:ty, $expr_t:ty) => {
+        fn $f(&mut self, id: $id_t, val: &$expr_t) {
+                let val = val.eval(self);
+                self.$m.insert(id, val);
+        }
+    }
+}
+
+impl<'a> Variables<'a> {
+    pub fn new() -> Variables<'static> {
         Variables {
             scalars: HashMap::new(),
             points: HashMap::new(),
@@ -466,14 +485,57 @@ impl Variables {
             scalar_macros: HashMap::new(),
             point_macros: HashMap::new(),
             line_macros: HashMap::new(),
+            globals: None,
+        }
+    }
+
+    pub fn with_globals(globals: &'a Variables) -> Variables<'a> {
+        Variables {
+            globals: Some(globals),
+            ..Variables::new()
         }
     }
 
     pub fn get(&self, id: &Ident) -> Option<math::Expr> {
         match *id {
-            Ident::Scalar(ref id) => self.scalars.get(&id).map(|x| math::Expr::Scalar(*x)),
-            Ident::Point(ref id) => self.points.get(&id).map(|x| math::Expr::Point(*x)),
-            Ident::Line(ref id) => self.lines.get(&id).map(|x| math::Expr::Line(*x)),
+            Ident::Scalar(ref id) => self.get_scalar(&id).map(|x| math::Expr::Scalar(*x)),
+            Ident::Point(ref id) => self.get_point(&id).map(|x| math::Expr::Point(*x)),
+            Ident::Line(ref id) => self.get_line(&id).map(|x| math::Expr::Line(*x)),
+        }
+    }
+
+    get_typed!(get_scalar, scalars, SIdent, math::Scalar);
+    get_typed!(get_point, points, PIdent, math::Point);
+    get_typed!(get_line, lines, LIdent, math::Line);
+    get_typed!(get_scalar_macro, scalar_macros, SIdent, Macro<Scalar>);
+    get_typed!(get_point_macro, point_macros, PIdent, Macro<Point>);
+    get_typed!(get_line_macro, line_macros, LIdent, Macro<Line>);
+
+    insert_typed!(insert_scalar, scalars, SIdent, Scalar);
+    insert_typed!(insert_point, points, PIdent, Point);
+    insert_typed!(insert_line, lines, LIdent, Line);
+
+    pub fn eval_def(&mut self, def: Definition) {
+        use self::Definition::*;
+        match def {
+            Scalar(id, val) => {
+                self.insert_scalar(id, &val);
+            },
+            Point(id, val) => {
+                self.insert_point(id, &val);
+            },
+            Line(id, val) => {
+                self.insert_line(id, &val);
+            },
+            ScalarMacro(id, args, body) => {
+                self.scalar_macros.insert(id.clone(), Macro{id, args, body});
+            },
+            PointMacro(id, args, body) => {
+                self.point_macros.insert(id.clone(), Macro{id, args, body});
+            },
+            LineMacro(id, args, body) => {
+                self.line_macros.insert(id.clone(), Macro{id, args, body});
+            },
         }
     }
 }
