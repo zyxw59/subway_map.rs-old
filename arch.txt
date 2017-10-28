@@ -1,1 +1,1 @@
-1. Process macros (requires storing intermediate file?)
+- A map line is declared as a list of Points

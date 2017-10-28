@@ -1,5 +1,5 @@
 use std::str::FromStr;
-use ast::{Statement, Definition, Expr, Scalar, Point, Line, SIdent, PIdent, LIdent, Ident};
+use ast::{Statement, Definition, Expr, Scalar, Point, Line, Route, SIdent, PIdent, LIdent, Ident};
 
 grammar;
 
@@ -16,6 +16,7 @@ Comma<T>: Vec<T> = {
 
 pub Statement: Statement = {
     <Definition> ";" => Statement::Definition(<>),
+    => Statement::None,
 };
 
 Definition: Definition = {
@@ -102,6 +103,16 @@ LTerm: Line = {
     "(" <LExpr> ")",
     <LIdent> => Line::Ident(<>),
     <LIdent> "[" <Comma<Expr>> "]" => Line::Macro(<>),
+};
+
+RExpr: Route = {
+    <RExpr> "'" <SExpr?> "," <PExpr> => Route::extend(<>),
+    <RExpr> "," <RTerm> => Route::concat(<>),
+    RTerm,
+};
+
+RTerm: Route = {
+    <PExpr> "'" <SExpr?> "," <PExpr> => Route::start(<>),
 };
 
 pub Ident: Ident = {

@@ -2,6 +2,7 @@ use std::collections::HashMap;
 use std::str::FromStr;
 use regex::Regex;
 use math;
+use route;
 
 mod errors;
 
@@ -353,6 +354,59 @@ impl Line {
 }
 
 #[derive(Clone, Debug)]
+pub struct Route {
+    sequence: Vec<Segment>,
+    offsets: Vec<Scalar>,
+}
+
+impl Route {
+    pub fn start(start: Point, offset: Option<Scalar>, end: Point) -> Route {
+        let seg = Segment { start, end };
+        Route {
+            sequence: vec![seg],
+            offsets: vec![offset.unwrap_or(Scalar::Number(0.0))]
+        }
+    }
+
+    pub fn concat(a: Route, b: Route) -> Route {
+        let mut a = a;
+        let mut b = b;
+        a.sequence.append(&mut b.sequence);
+        a.offsets.append(&mut b.offsets);
+        a
+    }
+
+    pub fn extend(r: Route, offset: Option<Scalar>, end: Point) -> Route {
+        let offset = offset.unwrap_or(Scalar::Number(0.0));
+        let mut sequence = r.sequence;
+        let mut offsets = r.offsets;
+        let seg = Segment {
+            start: sequence.last().unwrap().clone().end,
+            end,
+        };
+        sequence.push(seg);
+        offsets.push(offset);
+        Route { sequence, offsets }
+    }
+
+    // fn eval<'a>(self, vars: &Variables, segs: &'a mut Segments) -> route::Route<'a> {
+    //     unimplemented!();
+    // }
+}
+
+#[derive(Clone, Debug)]
+pub struct Segment {
+    start: Point,
+    end: Point,
+}
+
+impl Segment {
+    fn eval(&self, vars: &mut Variables) -> route::Segment {
+        unimplemented!();
+    }
+}
+
+#[derive(Clone, Debug)]
 struct Macro<T: Eval> {
     id: T::Ident,
     args: Vec<Ident>,
@@ -437,12 +491,14 @@ impl Definition {
 #[derive(Clone, Debug)]
 pub enum Statement {
     Definition(Definition),
+    None,
 }
 
 impl Statement {
     pub fn eval(self, vars: &mut Variables) {
         match self {
             Statement::Definition(d) => d.eval(vars),
+            Statement::None => {},
         };
     }
 }
