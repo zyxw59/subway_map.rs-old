@@ -63,6 +63,22 @@ impl FromStr for LIdent {
     }
 }
 
+#[derive(Clone, Debug, Eq, Hash, PartialEq)]
+pub struct RIdent(String);
+
+impl FromStr for RIdent {
+    type Err = IdentError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        lazy_static! {
+            static ref RE: Regex = Regex::new(r"~(\w+)").unwrap();
+        }
+        RE.captures(s).map_or(
+            Err(IdentError::new(s, "Route")),
+            |caps| Ok(RIdent(String::from(caps.get(1).unwrap().as_str()))))
+    }
+}
+
 trait Eval {
     type Output;
 
@@ -355,7 +371,7 @@ impl Line {
 
 #[derive(Clone, Debug)]
 pub struct Route {
-    sequence: Vec<Segment>,
+    segments: Vec<Segment>,
     offsets: Vec<Scalar>,
 }
 
@@ -363,7 +379,7 @@ impl Route {
     pub fn start(start: Point, offset: Option<Scalar>, end: Point) -> Route {
         let seg = Segment { start, end };
         Route {
-            sequence: vec![seg],
+            segments: vec![seg],
             offsets: vec![offset.unwrap_or(Scalar::Number(0.0))]
         }
     }
@@ -371,27 +387,34 @@ impl Route {
     pub fn concat(a: Route, b: Route) -> Route {
         let mut a = a;
         let mut b = b;
-        a.sequence.append(&mut b.sequence);
+        a.segments.append(&mut b.segments);
         a.offsets.append(&mut b.offsets);
         a
     }
 
     pub fn extend(r: Route, offset: Option<Scalar>, end: Point) -> Route {
         let offset = offset.unwrap_or(Scalar::Number(0.0));
-        let mut sequence = r.sequence;
+        let mut segments = r.segments;
         let mut offsets = r.offsets;
         let seg = Segment {
-            start: sequence.last().unwrap().clone().end,
+            start: segments.last().unwrap().clone().end,
             end,
         };
-        sequence.push(seg);
+        segments.push(seg);
         offsets.push(offset);
-        Route { sequence, offsets }
+        Route { segments, offsets }
     }
 
-    // fn eval<'a>(self, vars: &Variables, segs: &'a mut Segments) -> route::Route<'a> {
-    //     unimplemented!();
-    // }
+    fn eval(self, vars: &mut Variables) -> route::Route {
+        let mut r = route::Route::new();
+        for (seg, off) in self.segments.iter().zip(self.offsets.iter()) {
+            let seg = seg.eval(vars);
+            let off = off.eval(vars);
+            vars.insert_segment(seg, off);
+            r.push(seg, off);
+        }
+        r
+    }
 }
 
 #[derive(Clone, Debug)]
@@ -401,8 +424,11 @@ pub struct Segment {
 }
 
 impl Segment {
-    fn eval(&self, vars: &mut Variables) -> route::Segment {
-        unimplemented!();
+    fn eval(&self, vars: &Variables) -> route::Segment {
+        route::Segment {
+            start: self.start.eval(vars),
+            end: self.end.eval(vars),
+        }
     }
 }
 
@@ -454,6 +480,7 @@ pub enum Definition {
     Scalar(SIdent, Scalar),
     Point(PIdent, Point),
     Line(LIdent, Line),
+    Route(RIdent, Route),
     ScalarMacro(SIdent, Vec<Ident>, Scalar),
     PointMacro(PIdent, Vec<Ident>, Point),
     LineMacro(LIdent, Vec<Ident>, Line),
@@ -461,30 +488,7 @@ pub enum Definition {
 
 impl Definition {
     pub fn eval(self, vars: &mut Variables) {
-        use self::Definition::*;
-        match self {
-            Scalar(id, val) => {
-                let val = val.eval(vars);
-                vars.scalars.insert(id, val);
-            },
-            Point(id, val) => {
-                let val = val.eval(vars);
-                vars.points.insert(id, val);
-            },
-            Line(id, val) => {
-                let val = val.eval(vars);
-                vars.lines.insert(id, val);
-            },
-            ScalarMacro(id, args, body) => {
-                vars.scalar_macros.insert(id.clone(), Macro{id, args, body});
-            },
-            PointMacro(id, args, body) => {
-                vars.point_macros.insert(id.clone(), Macro{id, args, body});
-            },
-            LineMacro(id, args, body) => {
-                vars.line_macros.insert(id.clone(), Macro{id, args, body});
-            },
-        }
+        vars.eval_def(self);
     }
 }
 
@@ -496,11 +500,20 @@ pub enum Statement {
 
 impl Statement {
     pub fn eval(self, vars: &mut Variables) {
+        use self::Statement::*;
         match self {
-            Statement::Definition(d) => d.eval(vars),
-            Statement::None => {},
+            Definition(d) => d.eval(vars),
+            None => {},
         };
     }
+}
+
+#[derive(Clone, Debug)]
+struct SegmentBase {
+    start: math::Point,
+    end: math::Point,
+    min_offset: math::Scalar,
+    max_offset: math::Scalar,
 }
 
 #[derive(Clone, Debug)]
@@ -508,6 +521,8 @@ pub struct Variables<'a> {
     scalars: HashMap<SIdent, math::Scalar>,
     points: HashMap<PIdent, math::Point>,
     lines: HashMap<LIdent, math::Line>,
+    routes: HashMap<RIdent, route::Route>,
+    segments: HashMap<route::Segment, SegmentBase>,
     scalar_macros: HashMap<SIdent, Macro<Scalar>>,
     point_macros: HashMap<PIdent, Macro<Point>>,
     line_macros: HashMap<LIdent, Macro<Line>>,
@@ -538,6 +553,8 @@ impl<'a> Variables<'a> {
             scalars: HashMap::new(),
             points: HashMap::new(),
             lines: HashMap::new(),
+            routes: HashMap::new(),
+            segments: HashMap::new(),
             scalar_macros: HashMap::new(),
             point_macros: HashMap::new(),
             line_macros: HashMap::new(),
@@ -571,6 +588,29 @@ impl<'a> Variables<'a> {
     insert_typed!(insert_point, points, PIdent, Point);
     insert_typed!(insert_line, lines, LIdent, Line);
 
+    fn insert_route(&mut self, id: RIdent, route: Route) {
+        let route = route.eval(self);
+        self.routes.insert(id, route);
+    }
+
+    fn insert_segment(&mut self, seg: route::Segment, off: math::Scalar) {
+        if let Some(ref mut base) = self.segments.get_mut(&seg) {
+            if base.min_offset > off {
+                base.min_offset = off;
+            }
+            if base.max_offset < off {
+                base.max_offset = off;
+            }
+            return;
+        }
+        self.segments.insert(seg, SegmentBase {
+            start: seg.start,
+            end: seg.end,
+            min_offset: off,
+            max_offset: off,
+        });
+    }
+
     pub fn eval_def(&mut self, def: Definition) {
         use self::Definition::*;
         match def {
@@ -582,6 +622,9 @@ impl<'a> Variables<'a> {
             },
             Line(id, val) => {
                 self.insert_line(id, &val);
+            },
+            Route(id, val) => {
+                self.insert_route(id, val);
             },
             ScalarMacro(id, args, body) => {
                 self.scalar_macros.insert(id.clone(), Macro{id, args, body});

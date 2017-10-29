@@ -1,5 +1,6 @@
 #[macro_use] extern crate lazy_static;
 extern crate regex;
+extern crate ordered_float;
 
 use std::io;
 use std::io::BufRead;

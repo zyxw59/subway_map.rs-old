@@ -1,18 +1,27 @@
 use math::{Point, Scalar};
 
 #[derive(Clone, Debug)]
-pub struct Route<'a> {
-    segments: Vec<&'a Segment>,
-    offsets: Vec<&'a Scalar>,
+pub struct Route {
+    segments: Vec<Segment>,
+    offsets: Vec<Scalar>,
 }
 
-impl<'a> Route<'a> {
+impl Route {
+    pub fn new() -> Route {
+        Route {
+            segments: Vec::new(),
+            offsets: Vec::new(),
+        }
+    }
+
+    pub fn push(&mut self, s: Segment, o: Scalar) {
+        self.segments.push(s);
+        self.offsets.push(o);
+    }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub struct Segment {
-    start: Point,
-    end: Point,
-    min_offset: Scalar,
-    max_offset: Scalar,
+    pub start: Point,
+    pub end: Point,
 }

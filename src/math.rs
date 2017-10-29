@@ -1,4 +1,6 @@
 use std::ops::{Add, Sub, Mul, Div, Neg};
+use std::hash::{Hash, Hasher};
+use ordered_float::OrderedFloat;
 
 #[derive(Clone, Copy, Debug)]
 pub enum Expr {
@@ -11,6 +13,21 @@ pub type Scalar = f64;
 
 #[derive(Clone, Copy, Debug)]
 pub struct Point(pub Scalar, pub Scalar);
+
+impl PartialEq for Point {
+    fn eq(&self, rhs: &Point) -> bool {
+        OrderedFloat(self.0) == OrderedFloat(rhs.0) && OrderedFloat(self.1) == OrderedFloat(rhs.1)
+    }
+}
+
+impl Eq for Point {}
+
+impl Hash for Point {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        OrderedFloat(self.0).hash(state);
+        OrderedFloat(self.1).hash(state);
+    }
+}
 
 impl Add for Point {
     type Output = Point;

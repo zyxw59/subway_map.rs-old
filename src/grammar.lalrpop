@@ -1,5 +1,5 @@
 use std::str::FromStr;
-use ast::{Statement, Definition, Expr, Scalar, Point, Line, Route, SIdent, PIdent, LIdent, Ident};
+use ast::{Statement, Definition, Expr, Scalar, Point, Line, Route, SIdent, PIdent, LIdent, RIdent, Ident};
 
 grammar;
 
@@ -23,6 +23,7 @@ Definition: Definition = {
     <SIdent> "=" <SExpr> => Definition::Scalar(<>),
     <PIdent> "=" <PExpr> => Definition::Point(<>),
     <LIdent> "=" <LExpr> => Definition::Line(<>),
+    <RIdent> "=" <RExpr> => Definition::Route(<>),
     <SIdent> "[" <Comma<Ident>> "]" "=" <SExpr> => Definition::ScalarMacro(<>),
     <PIdent> "[" <Comma<Ident>> "]" "=" <PExpr> => Definition::PointMacro(<>),
     <LIdent> "[" <Comma<Ident>> "]" "=" <LExpr> => Definition::LineMacro(<>),
@@ -124,5 +125,6 @@ pub Ident: Ident = {
 SIdent: SIdent = r"\$\w+" => SIdent::from_str(<>).unwrap();
 PIdent: PIdent = r"@\w+"  => PIdent::from_str(<>).unwrap();
 LIdent: LIdent = r"!\w+"  => LIdent::from_str(<>).unwrap();
+RIdent: RIdent = r"~\w+"  => RIdent::from_str(<>).unwrap();
 
 Number: f64 = r"[0-9]+(\.[0-9]+)?" => f64::from_str(<>).unwrap();
