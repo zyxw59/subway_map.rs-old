@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use command::Command;
 
 use math;
 use route;
@@ -15,6 +16,7 @@ pub struct Variables<'a> {
     scalar_macros: HashMap<SIdent, Macro<Scalar>>,
     point_macros: HashMap<PIdent, Macro<Point>>,
     line_macros: HashMap<LIdent, Macro<Line>>,
+    commands: Vec<Command>,
     globals: Option<&'a Variables<'a>>,
 }
 
@@ -47,6 +49,7 @@ impl<'a> Variables<'a> {
             scalar_macros: HashMap::new(),
             point_macros: HashMap::new(),
             line_macros: HashMap::new(),
+            commands: Vec::new(),
             globals: None,
         }
     }
@@ -69,6 +72,7 @@ impl<'a> Variables<'a> {
     get_typed!(get_scalar, scalars, SIdent, math::Scalar);
     get_typed!(get_point, points, PIdent, math::Point);
     get_typed!(get_line, lines, LIdent, math::Line);
+    get_typed!(get_route, routes, RIdent, route::Route);
     get_typed!(get_scalar_macro, scalar_macros, SIdent, Macro<Scalar>);
     get_typed!(get_point_macro, point_macros, PIdent, Macro<Point>);
     get_typed!(get_line_macro, line_macros, LIdent, Macro<Line>);
@@ -98,6 +102,10 @@ impl<'a> Variables<'a> {
             min_offset: off,
             max_offset: off,
         });
+    }
+
+    pub fn push_command(&mut self, cmd: Command) {
+        self.commands.push(cmd);
     }
 
     pub fn eval_def(&mut self, def: Definition) {

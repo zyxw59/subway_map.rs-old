@@ -1,5 +1,7 @@
+use std::fmt;
 use std::str::FromStr;
 use regex::Regex;
+use command::Command as Cmd;
 use math;
 use route;
 
@@ -16,69 +18,39 @@ pub enum Ident {
     Line(LIdent),
 }
 
-#[derive(Clone, Debug, Eq, Hash, PartialEq)]
-pub struct SIdent(String);
+macro_rules! ident {
+    ($type: ident, $name: expr, $prefix: expr) => {
+        ident!{$type, $name, $prefix, $prefix}
+    };
+    ($type: ident, $name: expr, $prefix: expr, $prefix_re: expr) => {
+        #[derive(Clone, Debug, Eq, Hash, PartialEq)]
+        pub struct $type(String);
 
-impl FromStr for SIdent {
-    type Err = IdentError;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        lazy_static! {
-            static ref RE: Regex = Regex::new(r"\$(\w+)").unwrap();
+        impl fmt::Display for $type {
+            fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+                write!(f, concat!($prefix, "{}"), self.0)
+            }
         }
-        RE.captures(s).map_or(
-            Err(IdentError::new(s, "Scalar")),
-            |caps| Ok(SIdent(String::from(caps.get(1).unwrap().as_str()))))
-    }
+
+        impl FromStr for $type {
+            type Err = IdentError;
+
+            fn from_str(s: &str) -> Result<Self, Self::Err> {
+                lazy_static! {
+                    static ref RE: Regex = Regex::new(concat!($prefix_re, r"(\w+)")).unwrap();
+                }
+                RE.captures(s).map_or(
+                    Err(IdentError::new(s, $name)),
+                    |caps| Ok($type(String::from(caps.get(1).unwrap().as_str()))))
+            }
+        }
+    };
 }
 
-#[derive(Clone, Debug, Eq, Hash, PartialEq)]
-pub struct PIdent(String);
-
-impl FromStr for PIdent {
-    type Err = IdentError;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        lazy_static! {
-            static ref RE: Regex = Regex::new(r"@(\w+)").unwrap();
-        }
-        RE.captures(s).map_or(
-            Err(IdentError::new(s, "Point")),
-            |caps| Ok(PIdent(String::from(caps.get(1).unwrap().as_str()))))
-    }
-}
-
-#[derive(Clone, Debug, Eq, Hash, PartialEq)]
-pub struct LIdent(String);
-
-impl FromStr for LIdent {
-    type Err = IdentError;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        lazy_static! {
-            static ref RE: Regex = Regex::new(r"!(\w+)").unwrap();
-        }
-        RE.captures(s).map_or(
-            Err(IdentError::new(s, "Line")),
-            |caps| Ok(LIdent(String::from(caps.get(1).unwrap().as_str()))))
-    }
-}
-
-#[derive(Clone, Debug, Eq, Hash, PartialEq)]
-pub struct RIdent(String);
-
-impl FromStr for RIdent {
-    type Err = IdentError;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        lazy_static! {
-            static ref RE: Regex = Regex::new(r"~(\w+)").unwrap();
-        }
-        RE.captures(s).map_or(
-            Err(IdentError::new(s, "Route")),
-            |caps| Ok(RIdent(String::from(caps.get(1).unwrap().as_str()))))
-    }
-}
+ident!{SIdent, "Scalar", "$", r"\$"}
+ident!{PIdent, "Scalar", "@"}
+ident!{LIdent, "Scalar", "!"}
+ident!{RIdent, "Scalar", "~"}
 
 pub trait Eval {
     type Output;
@@ -508,7 +480,7 @@ impl Statement {
         use self::Statement::*;
         match self {
             Definition(d) => d.eval(vars),
-            Command(_) => {},
+            Command(c) => c.eval(vars),
             None => {},
         };
     }
@@ -517,4 +489,21 @@ impl Statement {
 #[derive(Clone, Debug)]
 pub enum Command {
     Routes(Vec<RIdent>, String),
+}
+
+impl Command {
+    pub fn eval(self, vars: &mut Variables) {
+        use self::Command::*;
+        match self {
+            Routes(v, s) => {
+                let v = v.into_iter()
+                    .map(|r| {
+                        let route = vars.get_route(&r).unwrap().clone();
+                        let id = r.0;
+                        Cmd::Route(route, id)
+                    }).collect::<Vec<_>>();
+                vars.push_command(Cmd::Group(v, s));
+            },
+        }
+    }
 }
