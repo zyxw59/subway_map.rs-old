@@ -5282,12 +5282,12 @@ fn __action14<
     'input,
 >(
     input: &'input str,
-    (_, __0, _): (usize, Scalar, usize),
+    (_, l, _): (usize, Scalar, usize),
     (_, _, _): (usize, &'input str, usize),
-    (_, __1, _): (usize, Scalar, usize),
+    (_, r, _): (usize, Scalar, usize),
 ) -> Scalar
 {
-    Scalar::lt(__0, __1)
+    l.lt(r)
 }
 
 #[allow(unused_variables)]
@@ -5295,12 +5295,12 @@ fn __action15<
     'input,
 >(
     input: &'input str,
-    (_, __0, _): (usize, Scalar, usize),
+    (_, l, _): (usize, Scalar, usize),
     (_, _, _): (usize, &'input str, usize),
-    (_, __1, _): (usize, Scalar, usize),
+    (_, r, _): (usize, Scalar, usize),
 ) -> Scalar
 {
-    Scalar::le(__0, __1)
+    l.le(r)
 }
 
 #[allow(unused_variables)]
@@ -5313,7 +5313,7 @@ fn __action16<
     (_, r, _): (usize, Scalar, usize),
 ) -> Scalar
 {
-    Scalar::lt(r, l)
+    r.lt(l)
 }
 
 #[allow(unused_variables)]
@@ -5326,7 +5326,7 @@ fn __action17<
     (_, r, _): (usize, Scalar, usize),
 ) -> Scalar
 {
-    Scalar::le(r, l)
+    r.le(l)
 }
 
 #[allow(unused_variables)]
@@ -5334,12 +5334,12 @@ fn __action18<
     'input,
 >(
     input: &'input str,
-    (_, __0, _): (usize, Scalar, usize),
+    (_, l, _): (usize, Scalar, usize),
     (_, _, _): (usize, &'input str, usize),
-    (_, __1, _): (usize, Scalar, usize),
+    (_, r, _): (usize, Scalar, usize),
 ) -> Scalar
 {
-    Scalar::eq(__0, __1)
+    l.eq(r)
 }
 
 #[allow(unused_variables)]
@@ -5358,12 +5358,12 @@ fn __action20<
     'input,
 >(
     input: &'input str,
-    (_, __0, _): (usize, Scalar, usize),
+    (_, l, _): (usize, Scalar, usize),
     (_, _, _): (usize, &'input str, usize),
-    (_, __1, _): (usize, Scalar, usize),
+    (_, r, _): (usize, Scalar, usize),
 ) -> Scalar
 {
-    Scalar::add(__0, __1)
+    l.add(r)
 }
 
 #[allow(unused_variables)]
@@ -5371,12 +5371,12 @@ fn __action21<
     'input,
 >(
     input: &'input str,
-    (_, __0, _): (usize, Scalar, usize),
+    (_, l, _): (usize, Scalar, usize),
     (_, _, _): (usize, &'input str, usize),
-    (_, __1, _): (usize, Scalar, usize),
+    (_, r, _): (usize, Scalar, usize),
 ) -> Scalar
 {
-    Scalar::subtract(__0, __1)
+    l.sub(r)
 }
 
 #[allow(unused_variables)]
@@ -5395,12 +5395,12 @@ fn __action23<
     'input,
 >(
     input: &'input str,
-    (_, __0, _): (usize, Scalar, usize),
+    (_, l, _): (usize, Scalar, usize),
     (_, _, _): (usize, &'input str, usize),
-    (_, __1, _): (usize, Scalar, usize),
+    (_, r, _): (usize, Scalar, usize),
 ) -> Scalar
 {
-    Scalar::multiply(__0, __1)
+    l.mul(r)
 }
 
 #[allow(unused_variables)]
@@ -5408,12 +5408,12 @@ fn __action24<
     'input,
 >(
     input: &'input str,
-    (_, __0, _): (usize, Scalar, usize),
+    (_, l, _): (usize, Scalar, usize),
     (_, _, _): (usize, &'input str, usize),
-    (_, __1, _): (usize, Scalar, usize),
+    (_, r, _): (usize, Scalar, usize),
 ) -> Scalar
 {
-    Scalar::divide(__0, __1)
+    l.div(r)
 }
 
 #[allow(unused_variables)]
@@ -5436,7 +5436,7 @@ fn __action26<
     (_, __0, _): (usize, Scalar, usize),
 ) -> Scalar
 {
-    Scalar::negative(__0)
+    __0.neg()
 }
 
 #[allow(unused_variables)]
@@ -5447,7 +5447,7 @@ fn __action27<
     (_, __0, _): (usize, f64, usize),
 ) -> Scalar
 {
-    Scalar::Number(__0)
+    Scalar::Num(__0)
 }
 
 #[allow(unused_variables)]
@@ -5493,12 +5493,12 @@ fn __action31<
     'input,
 >(
     input: &'input str,
-    (_, __0, _): (usize, Point, usize),
+    (_, l, _): (usize, Point, usize),
     (_, _, _): (usize, &'input str, usize),
-    (_, __1, _): (usize, Point, usize),
+    (_, r, _): (usize, Point, usize),
 ) -> Point
 {
-    Point::add(__0, __1)
+    l.add(r)
 }
 
 #[allow(unused_variables)]
@@ -5506,12 +5506,12 @@ fn __action32<
     'input,
 >(
     input: &'input str,
-    (_, __0, _): (usize, Point, usize),
+    (_, l, _): (usize, Point, usize),
     (_, _, _): (usize, &'input str, usize),
-    (_, __1, _): (usize, Point, usize),
+    (_, r, _): (usize, Point, usize),
 ) -> Point
 {
-    Point::subtract(__0, __1)
+    l.add(r)
 }
 
 #[allow(unused_variables)]
@@ -5535,7 +5535,7 @@ fn __action34<
     (_, p, _): (usize, Point, usize),
 ) -> Point
 {
-    Point::multiply(p, s)
+    p.mul(s)
 }
 
 #[allow(unused_variables)]
@@ -5543,12 +5543,12 @@ fn __action35<
     'input,
 >(
     input: &'input str,
-    (_, __0, _): (usize, Point, usize),
+    (_, p, _): (usize, Point, usize),
     (_, _, _): (usize, &'input str, usize),
-    (_, __1, _): (usize, Scalar, usize),
+    (_, s, _): (usize, Scalar, usize),
 ) -> Point
 {
-    Point::multiply(__0, __1)
+    p.mul(s)
 }
 
 #[allow(unused_variables)]
@@ -5556,12 +5556,12 @@ fn __action36<
     'input,
 >(
     input: &'input str,
-    (_, __0, _): (usize, Point, usize),
+    (_, p, _): (usize, Point, usize),
     (_, _, _): (usize, &'input str, usize),
-    (_, __1, _): (usize, Scalar, usize),
+    (_, s, _): (usize, Scalar, usize),
 ) -> Point
 {
-    Point::divide(__0, __1)
+    p.div(s)
 }
 
 #[allow(unused_variables)]
@@ -5612,7 +5612,7 @@ fn __action40<
     (_, __0, _): (usize, Point, usize),
 ) -> Point
 {
-    Point::negative(__0)
+    __0.neg()
 }
 
 #[allow(unused_variables)]
@@ -5658,12 +5658,12 @@ fn __action44<
     'input,
 >(
     input: &'input str,
-    (_, __0, _): (usize, Line, usize),
+    (_, l, _): (usize, Line, usize),
     (_, _, _): (usize, &'input str, usize),
-    (_, __1, _): (usize, Point, usize),
+    (_, r, _): (usize, Point, usize),
 ) -> Line
 {
-    Line::add(__0, __1)
+    l.add(r)
 }
 
 #[allow(unused_variables)]
@@ -5671,12 +5671,12 @@ fn __action45<
     'input,
 >(
     input: &'input str,
-    (_, __0, _): (usize, Line, usize),
+    (_, l, _): (usize, Line, usize),
     (_, _, _): (usize, &'input str, usize),
-    (_, __1, _): (usize, Point, usize),
+    (_, r, _): (usize, Point, usize),
 ) -> Line
 {
-    Line::subtract(__0, __1)
+    l.add(r)
 }
 
 #[allow(unused_variables)]
@@ -5684,12 +5684,12 @@ fn __action46<
     'input,
 >(
     input: &'input str,
-    (_, __0, _): (usize, Line, usize),
+    (_, l, _): (usize, Line, usize),
     (_, _, _): (usize, &'input str, usize),
-    (_, __1, _): (usize, Point, usize),
+    (_, p, _): (usize, Point, usize),
 ) -> Line
 {
-    Line::parallel(__0, __1)
+    l.parallel(p)
 }
 
 #[allow(unused_variables)]
@@ -5697,12 +5697,12 @@ fn __action47<
     'input,
 >(
     input: &'input str,
-    (_, __0, _): (usize, Line, usize),
+    (_, l, _): (usize, Line, usize),
     (_, _, _): (usize, &'input str, usize),
-    (_, __1, _): (usize, Point, usize),
+    (_, p, _): (usize, Point, usize),
 ) -> Line
 {
-    Line::perpendicular(__0, __1)
+    l.perpendicular(p)
 }
 
 #[allow(unused_variables)]
@@ -5796,14 +5796,14 @@ fn __action55<
     'input,
 >(
     input: &'input str,
-    (_, __0, _): (usize, Route, usize),
+    (_, r, _): (usize, Route, usize),
     (_, _, _): (usize, &'input str, usize),
-    (_, __1, _): (usize, ::std::option::Option<Scalar>, usize),
+    (_, o, _): (usize, ::std::option::Option<Scalar>, usize),
     (_, _, _): (usize, &'input str, usize),
-    (_, __2, _): (usize, Point, usize),
+    (_, p, _): (usize, Point, usize),
 ) -> Route
 {
-    Route::extend(__0, __1, __2)
+    r.extend(o, p)
 }
 
 #[allow(unused_variables)]
@@ -5811,12 +5811,12 @@ fn __action56<
     'input,
 >(
     input: &'input str,
-    (_, __0, _): (usize, Route, usize),
+    (_, l, _): (usize, Route, usize),
     (_, _, _): (usize, &'input str, usize),
-    (_, __1, _): (usize, Route, usize),
+    (_, r, _): (usize, Route, usize),
 ) -> Route
 {
-    Route::concat(__0, __1)
+    l.concat(r)
 }
 
 #[allow(unused_variables)]

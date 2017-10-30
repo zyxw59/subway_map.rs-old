@@ -36,61 +36,61 @@ Expr: Expr = {
 };
 
 SExpr: Scalar = {
-    <SExpr> "<" <SArith> => Scalar::lt(<>),
-    <SExpr> "<=" <SArith> => Scalar::le(<>),
-    <l:SExpr> ">" <r:SArith> => Scalar::lt(r, l),
-    <l:SExpr> ">=" <r:SArith> => Scalar::le(r, l),
-    <SExpr> "==" <SArith> => Scalar::eq(<>),
+    <l:SExpr> "<"  <r:SArith> => l.lt(r),
+    <l:SExpr> "<=" <r:SArith> => l.le(r),
+    <l:SExpr> ">"  <r:SArith> => r.lt(l),
+    <l:SExpr> ">=" <r:SArith> => r.le(l),
+    <l:SExpr> "==" <r:SArith> => l.eq(r),
     SArith,
 };
 
 SArith: Scalar = {
-    <SArith> "+" <SFactor> => Scalar::add(<>),
-    <SArith> "-" <SFactor> => Scalar::subtract(<>),
+    <l:SArith> "+" <r:SFactor> => l.add(r),
+    <l:SArith> "-" <r:SFactor> => l.sub(r),
     SFactor,
 };
 
 SFactor: Scalar = {
-    <SFactor> "*" <STerm> => Scalar::multiply(<>),
-    <SFactor> "/" <STerm> => Scalar::divide(<>),
+    <l:SFactor> "*" <r:STerm> => l.mul(r),
+    <l:SFactor> "/" <r:STerm> => l.div(r),
     STerm,
 };
 
 STerm: Scalar = {
-    "-" <STerm> => Scalar::negative(<>),
-    Number => Scalar::Number(<>),
+    "-" <STerm> => <>.neg(),
+    Number => Scalar::Num(<>),
     "(" <SExpr> ")",
     SIdent => Scalar::Ident(<>),
     <SIdent> "[" <Comma<Expr>> "]" => Scalar::Macro(<>),
 };
 
 PExpr: Point = {
-    <PExpr> "+" <PFactor> => Point::add(<>),
-    <PExpr> "-" <PFactor> => Point::subtract(<>),
+    <l:PExpr> "+" <r:PFactor> => l.add(r),
+    <l:PExpr> "-" <r:PFactor> => l.add(r),
     PFactor,
 };
 
 PFactor: Point = {
-    <s:SFactor> "*" <p:PTerm> => Point::multiply(p, s),
-    <PFactor> "*" <STerm> => Point::multiply(<>),
-    <PFactor> "/" <STerm> => Point::divide(<>),
+    <s:SFactor> "*" <p:PTerm> => p.mul(s),
+    <p:PFactor> "*" <s:STerm> => p.mul(s),
+    <p:PFactor> "/" <s:STerm> => p.div(s),
     <LTerm> "&" <LTerm> => Point::intersection(<>),
     PTerm,
 };
 
 PTerm: Point = {
     "(" <SExpr> "," <SExpr> ")" => Point::Pair(<>),
-    "-" <PTerm> => Point::negative(<>),
+    "-" <PTerm> => <>.neg(),
     "(" <PExpr> ")",
     PIdent => Point::Ident(<>),
     <PIdent> "[" <Comma<Expr>> "]" => Point::Macro(<>),
 };
 
 LExpr: Line = {
-    <LExpr> "+" <PFactor> => Line::add(<>),
-    <LExpr> "-" <PFactor> => Line::subtract(<>),
-    <LExpr> "|" <PFactor> => Line::parallel(<>),
-    <LExpr> ":" <PFactor> => Line::perpendicular(<>),
+    <l:LExpr> "+" <r:PFactor> => l.add(r),
+    <l:LExpr> "-" <r:PFactor> => l.add(r),
+    <l:LExpr> "|" <p:PFactor> => l.parallel(p),
+    <l:LExpr> ":" <p:PFactor> => l.perpendicular(p),
     LFactor,
 };
 
@@ -107,8 +107,8 @@ LTerm: Line = {
 };
 
 RExpr: Route = {
-    <RExpr> "'" <SExpr?> "," <PExpr> => Route::extend(<>),
-    <RExpr> "," <RTerm> => Route::concat(<>),
+    <r:RExpr> "'" <o:SExpr?> "," <p:PExpr> => r.extend(o, p),
+    <l:RExpr> "," <r:RTerm> => l.concat(r),
     RTerm,
 };
 

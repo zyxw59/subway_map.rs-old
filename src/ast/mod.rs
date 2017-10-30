@@ -112,13 +112,13 @@ impl Eval for Expr {
 #[derive(Clone, Debug)]
 pub enum Scalar {
     Add(Box<Scalar>, Box<Scalar>),
-    Negative(Box<Scalar>),
-    Multiply(Box<Scalar>, Box<Scalar>),
-    Divide(Box<Scalar>, Box<Scalar>),
+    Neg(Box<Scalar>),
+    Mul(Box<Scalar>, Box<Scalar>),
+    Div(Box<Scalar>, Box<Scalar>),
     Less(Box<Scalar>, Box<Scalar>),
     LessEq(Box<Scalar>, Box<Scalar>),
     Equal(Box<Scalar>, Box<Scalar>),
-    Number(math::Scalar),
+    Num(math::Scalar),
     Ident(SIdent),
     Macro(SIdent, Vec<Expr>),
 }
@@ -132,13 +132,13 @@ impl Eval for Scalar {
         use self::Scalar::*;
         match *self {
             Add(ref a, ref b) => a.eval(vars) + b.eval(vars),
-            Negative(ref a) => - a.eval(vars),
-            Multiply(ref a, ref b) => a.eval(vars) * b.eval(vars),
-            Divide(ref a, ref b) => a.eval(vars) / b.eval(vars),
+            Neg(ref a) => - a.eval(vars),
+            Mul(ref a, ref b) => a.eval(vars) * b.eval(vars),
+            Div(ref a, ref b) => a.eval(vars) / b.eval(vars),
             Less(ref a, ref b) => if a.eval(vars) < b.eval(vars) {1.0} else {0.0},
             LessEq(ref a, ref b) => if a.eval(vars) <= b.eval(vars) {1.0} else {0.0},
             Equal(ref a, ref b) => if a.eval(vars) == b.eval(vars) {1.0} else {0.0},
-            Number(x) => x,
+            Num(x) => x,
             Ident(ref id) => *vars.get_scalar(id).unwrap(),
             Macro(ref id, ref args) => vars.get_scalar_macro(id).unwrap().expand(args, vars),
         }
@@ -146,70 +146,70 @@ impl Eval for Scalar {
 }
 
 impl Scalar {
-    pub fn lt(a: Self, b: Self) -> Self {
+    pub fn lt(self, b: Scalar) -> Scalar {
         use self::Scalar::*;
-        if let (&Number(n), &Number(m)) = (&a, &b) {
-            Number(if n < m {1.0} else {0.0})
+        if let (&Num(n), &Num(m)) = (&self, &b) {
+            Num(if n < m {1.0} else {0.0})
         } else {
-            Less(Box::new(a), Box::new(b))
+            Less(Box::new(self), Box::new(b))
         }
     }
 
-    pub fn le(a: Self, b: Self) -> Self {
+    pub fn le(self, b: Scalar) -> Scalar {
         use self::Scalar::*;
-        if let (&Number(n), &Number(m)) = (&a, &b) {
-            Number(if n <= m {1.0} else {0.0})
+        if let (&Num(n), &Num(m)) = (&self, &b) {
+            Num(if n <= m {1.0} else {0.0})
         } else {
-            LessEq(Box::new(a), Box::new(b))
+            LessEq(Box::new(self), Box::new(b))
         }
     }
 
-    pub fn eq(a: Self, b: Self) -> Self {
+    pub fn eq(self, b: Scalar) -> Scalar {
         use self::Scalar::*;
-        if let (&Number(n), &Number(m)) = (&a, &b) {
-            Number(if n == m {1.0} else {0.0})
+        if let (&Num(n), &Num(m)) = (&self, &b) {
+            Num(if n == m {1.0} else {0.0})
         } else {
-            Equal(Box::new(a), Box::new(b))
+            Equal(Box::new(self), Box::new(b))
         }
     }
 
-    pub fn add(a: Self, b: Self) -> Self {
+    pub fn add(self, b: Scalar) -> Scalar {
         use self::Scalar::*;
-        if let (&Number(n), &Number(m)) = (&a, &b) {
-            Number(n + m)
+        if let (&Num(n), &Num(m)) = (&self, &b) {
+            Num(n + m)
         } else {
-            Add(Box::new(a), Box::new(b))
+            Add(Box::new(self), Box::new(b))
         }
     }
 
-    pub fn subtract(a: Self, b: Self) -> Self {
-        Scalar::add(a, Scalar::negative(b))
+    pub fn sub(self, b: Scalar) -> Scalar {
+        self.add(b.neg())
     }
 
-    pub fn negative(a: Self) -> Self {
+    pub fn neg(self) -> Scalar {
         use self::Scalar::*;
-        match a {
-            Negative(a) => *a,
-            Number(a) => Number(-a),
-            _ => Negative(Box::new(a)),
+        match self {
+            Neg(a) => *a,
+            Num(a) => Num(-a),
+            _ => Neg(Box::new(self)),
         }
     }
 
-    pub fn multiply(a: Self, b: Self) -> Self {
+    pub fn mul(self, b: Scalar) -> Scalar {
         use self::Scalar::*;
-        if let (&Number(n), &Number(m)) = (&a, &b) {
-            Number(n * m)
+        if let (&Num(n), &Num(m)) = (&self, &b) {
+            Num(n * m)
         } else {
-            Multiply(Box::new(a), Box::new(b))
+            Mul(Box::new(self), Box::new(b))
         }
     }
 
-    pub fn divide(a: Self, b: Self) -> Self {
+    pub fn div(self, b: Scalar) -> Scalar {
         use self::Scalar::*;
-        if let (&Number(n), &Number(m)) = (&a, &b) {
-            Number(n / m)
+        if let (&Num(n), &Num(m)) = (&self, &b) {
+            Num(n / m)
         } else {
-            Divide(Box::new(a), Box::new(b))
+            Div(Box::new(self), Box::new(b))
         }
     }
 }
@@ -217,9 +217,9 @@ impl Scalar {
 #[derive(Clone, Debug)]
 pub enum Point {
     Add(Box<Point>, Box<Point>),
-    Negative(Box<Point>),
-    Multiply(Box<Point>, Scalar),
-    Divide(Box<Point>, Scalar),
+    Neg(Box<Point>),
+    Mul(Box<Point>, Scalar),
+    Div(Box<Point>, Scalar),
     Pair(Scalar, Scalar),
     Intersection(Box<Line>, Box<Line>),
     Ident(PIdent),
@@ -235,9 +235,9 @@ impl Eval for Point {
         use self::Point::*;
         match *self {
             Add(ref a, ref b) => a.eval(vars) + b.eval(vars),
-            Negative(ref a) => -a.eval(vars),
-            Multiply(ref a, ref n) => a.eval(vars) * n.eval(vars),
-            Divide(ref a, ref n) => a.eval(vars) / n.eval(vars),
+            Neg(ref a) => -a.eval(vars),
+            Mul(ref a, ref n) => a.eval(vars) * n.eval(vars),
+            Div(ref a, ref n) => a.eval(vars) / n.eval(vars),
             Pair(ref x, ref y) => math::Point(x.eval(vars), y.eval(vars)),
             Intersection(ref a, ref b) => a.eval(vars).intersect(b.eval(vars)),
             Ident(ref id) => *vars.get_point(id).unwrap(),
@@ -247,9 +247,9 @@ impl Eval for Point {
 }
 
 impl Point {
-    pub fn add(a: Self, b: Self) -> Self {
+    pub fn add(self, b: Point) -> Point {
         use self::Point::*;
-        let ab = (a, b);
+        let ab = (self, b);
         if let (Pair(xa, ya), Pair(xb, yb)) = ab {
             Pair(Scalar::add(xa, xb), Scalar::add(ya, yb))
         } else {
@@ -257,30 +257,30 @@ impl Point {
         }
     }
 
-    pub fn subtract(a: Self, b: Self) -> Self {
-        Point::add(a, Point::negative(b))
+    pub fn sub(self, b: Point) -> Point {
+        Point::add(self, b.neg())
     }
 
-    pub fn negative(a: Self) -> Self {
+    pub fn neg(self) -> Point {
         use self::Point::*;
-        match a {
-            Negative(a) => *a,
-            Multiply(a, n) => Multiply(a, Scalar::negative(n)),
-            Divide(a, n) => Divide(a, Scalar::negative(n)),
-            Pair(x, y) => Pair(Scalar::negative(x), Scalar::negative(y)),
-            _ => Negative(Box::new(a)),
+        match self {
+            Neg(a) => *a,
+            Mul(a, n) => Mul(a, n.neg()),
+            Div(a, n) => Div(a, n.neg()),
+            Pair(x, y) => Pair(x.neg(), y.neg()),
+            _ => Neg(Box::new(self)),
         }
     }
 
-    pub fn multiply(a: Self, b: Scalar) -> Self {
-        Point::Multiply(Box::new(a), b)
+    pub fn mul(self, b: Scalar) -> Point {
+        Point::Mul(Box::new(self), b)
     }
 
-    pub fn divide(a: Self, b: Scalar) -> Self {
-        Point::Divide(Box::new(a), b)
+    pub fn div(self, b: Scalar) -> Point {
+        Point::Div(Box::new(self), b)
     }
 
-    pub fn intersection(a: Line, b: Line) -> Self {
+    pub fn intersection(a: Line, b: Line) -> Point {
         Point::Intersection(Box::new(a), Box::new(b))
     }
 }
@@ -317,55 +317,55 @@ impl Eval for Line {
 }
 
 impl Line {
-    pub fn add(a: Self, b: Point) -> Self {
+    pub fn add(self, b: Point) -> Line {
         use self::Line::*;
-        match a {
-            Add(l, p) => Add(l, Point::add(p, b)),
-            Parallel(l, p) => Parallel(l, Point::add(p, b)),
-            Perpendicular(l, p) => Perpendicular(l, Point::add(p, b)),
-            Vector(o, v) => Vector(Point::add(o, b), v),
-            _ => Add(Box::new(a), b),
+        match self {
+            Add(l, p) => Add(l, p.add(b)),
+            Parallel(l, p) => Parallel(l, p.add(b)),
+            Perpendicular(l, p) => Perpendicular(l, p.add(b)),
+            Vector(o, v) => Vector(o.add(b), v),
+            _ => Add(Box::new(self), b),
         }
     }
 
-    pub fn subtract(a: Self, b: Point) -> Self {
+    pub fn sub(self, b: Point) -> Line {
         use self::Line::*;
-        match a {
-            Add(l, p) => Add(l, Point::subtract(p, b)),
-            Parallel(l, p) => Parallel(l, Point::subtract(p, b)),
-            Perpendicular(l, p) => Perpendicular(l, Point::subtract(p, b)),
-            Vector(o, v) => Vector(Point::subtract(o, b), v),
-            _ => Add(Box::new(a), Point::negative(b)),
+        match self {
+            Add(l, p) => Add(l, p.sub(b)),
+            Parallel(l, p) => Parallel(l, p.sub(b)),
+            Perpendicular(l, p) => Perpendicular(l, p.sub(b)),
+            Vector(o, v) => Vector(o.sub(b), v),
+            _ => Add(Box::new(self), b.neg()),
         }
     }
 
-    pub fn parallel(a: Self, b: Point) -> Self {
+    pub fn parallel(self, b: Point) -> Line {
         use self::Line::*;
-        match a {
+        match self {
             Add(l, _) => Parallel(l, b),
             Parallel(l, _) => Parallel(l, b),
             Perpendicular(l, _) => Perpendicular(l, b),
             Vector(_, v) => Vector(b, v),
-            _ => Parallel(Box::new(a), b),
+            _ => Parallel(Box::new(self), b),
         }
     }
 
-    pub fn perpendicular(a: Self, b: Point) -> Self {
+    pub fn perpendicular(self, b: Point) -> Line {
         use self::Line::*;
-        match a {
+        match self {
             Add(l, _) => Perpendicular(l, b),
             Parallel(l, _) => Perpendicular(l, b),
             Perpendicular(l, _) => Parallel(l, b),
-            _ => Perpendicular(Box::new(a), b),
+            _ => Perpendicular(Box::new(self), b),
         }
     }
 
-    pub fn vector(a: Point, b: Point) -> Self {
+    pub fn vector(a: Point, b: Point) -> Line {
         Line::Vector(a, b)
     }
 
-    pub fn between(a: Point, b: Point) -> Self {
-        Line::Vector(a.clone(), Point::subtract(b, a))
+    pub fn between(a: Point, b: Point) -> Line {
+        Line::Vector(a.clone(), b.sub(a))
     }
 }
 
@@ -380,29 +380,26 @@ impl Route {
         let seg = Segment { start, end };
         Route {
             segments: vec![seg],
-            offsets: vec![offset.unwrap_or(Scalar::Number(0.0))]
+            offsets: vec![offset.unwrap_or(Scalar::Num(0.0))]
         }
     }
 
-    pub fn concat(a: Route, b: Route) -> Route {
-        let mut a = a;
+    pub fn concat(mut self, b: Route) -> Route {
         let mut b = b;
-        a.segments.append(&mut b.segments);
-        a.offsets.append(&mut b.offsets);
-        a
+        self.segments.append(&mut b.segments);
+        self.offsets.append(&mut b.offsets);
+        self
     }
 
-    pub fn extend(r: Route, offset: Option<Scalar>, end: Point) -> Route {
-        let offset = offset.unwrap_or(Scalar::Number(0.0));
-        let mut segments = r.segments;
-        let mut offsets = r.offsets;
+    pub fn extend(mut self, offset: Option<Scalar>, end: Point) -> Route {
+        let offset = offset.unwrap_or(Scalar::Num(0.0));
         let seg = Segment {
-            start: segments.last().unwrap().clone().end,
+            start: self.segments.last().unwrap().clone().end,
             end,
         };
-        segments.push(seg);
-        offsets.push(offset);
-        Route { segments, offsets }
+        self.segments.push(seg);
+        self.offsets.push(offset);
+        self
     }
 
     fn eval(self, vars: &mut Variables) -> route::Route {
