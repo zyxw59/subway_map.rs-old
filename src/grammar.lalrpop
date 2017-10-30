@@ -21,7 +21,7 @@ pub Statement: Statement = {
 };
 
 Command: Command = {
-    "\\routes" "{" <Comma<RIdent>> "}" <String> => Command::Routes(<>),
+    "\routes" "{" <Comma<RIdent>> "}" <String> => Command::Routes(<>),
 };
 
 Definition: Definition = {
