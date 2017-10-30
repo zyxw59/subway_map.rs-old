@@ -14,6 +14,20 @@ pub type Scalar = f64;
 #[derive(Clone, Copy, Debug)]
 pub struct Point(pub Scalar, pub Scalar);
 
+impl Point {
+    pub fn abs(self) -> Scalar {
+        (self.0 * self.0 + self.1 * self.1).sqrt()
+    }
+
+    pub fn unit(self) -> Point {
+        self / self.abs()
+    }
+
+    pub fn perp(self) -> Point {
+        Point(self.1, -self.0)
+    }
+}
+
 impl PartialEq for Point {
     fn eq(&self, rhs: &Point) -> bool {
         OrderedFloat(self.0) == OrderedFloat(rhs.0) && OrderedFloat(self.1) == OrderedFloat(rhs.1)
@@ -98,6 +112,13 @@ impl Line {
         Point(det1*dx2 - dx1*det2, det1*dy2 - dy1*det2) / det
     }
 
+    pub fn offset(self, offset: Scalar) -> Line {
+        Line {
+            origin: self.origin + self.vector.perp().unit() * offset,
+            vector: self.vector,
+        }
+    }
+
     pub fn parallel(self, p: Point) -> Line {
         Line {
             origin: p,
@@ -108,7 +129,7 @@ impl Line {
     pub fn perpendicular(self, p: Point) -> Line {
         Line {
             origin: p,
-            vector: Point(self.vector.1, -self.vector.0),
+            vector: self.vector.perp(),
         }
     }
 }

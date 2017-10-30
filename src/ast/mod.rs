@@ -290,6 +290,7 @@ pub enum Line {
     Add(Box<Line>, Point),
     Parallel(Box<Line>, Point),
     Perpendicular(Box<Line>, Point),
+    Offset(Box<Line>, Scalar),
     Vector(Point, Point),
     Ident(LIdent),
     Macro(LIdent, Vec<Expr>),
@@ -306,6 +307,7 @@ impl Eval for Line {
             Add(ref l, ref p) => l.eval(vars) + p.eval(vars),
             Parallel(ref l, ref p) => l.eval(vars).parallel(p.eval(vars)),
             Perpendicular(ref l, ref p) => l.eval(vars).perpendicular(p.eval(vars)),
+            Offset(ref l, ref s) => l.eval(vars).offset(s.eval(vars)),
             Vector(ref o, ref v) => math::Line {
                 origin: o.eval(vars),
                 vector: v.eval(vars),
@@ -358,6 +360,10 @@ impl Line {
             Perpendicular(l, _) => Parallel(l, b),
             _ => Perpendicular(Box::new(self), b),
         }
+    }
+
+    pub fn offset(self, b: Scalar) -> Line {
+        Line::Offset(Box::new(self), b)
     }
 
     pub fn vector(a: Point, b: Point) -> Line {
@@ -492,6 +498,7 @@ impl Definition {
 #[derive(Clone, Debug)]
 pub enum Statement {
     Definition(Definition),
+    Command(Command),
     None,
 }
 
@@ -500,9 +507,15 @@ impl Statement {
         use self::Statement::*;
         match self {
             Definition(d) => d.eval(vars),
+            Command(_) => {},
             None => {},
         };
     }
+}
+
+#[derive(Clone, Debug)]
+pub enum Command {
+    Routes(Vec<RIdent>, String),
 }
 
 #[derive(Clone, Debug)]
