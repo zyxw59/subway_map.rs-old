@@ -27,11 +27,18 @@ impl Route {
         self.offsets.push(o);
     }
 
-    pub fn format<W: Write>(&self,
+    pub fn format_def<W: Write>(&self,
                           buf: &mut BufWriter<W>,
                           vars: &Variables,
                           id: &String) -> Result<(), Box<Error>> {
-        unimplemented!();
+        write!(buf, r#"<path id="{}" d=""#, id)?;
+        self.segments[0].format_start(buf, vars, self.offsets[0])?;
+        for (i, seg) in self.segments[1..].iter().enumerate() {
+            self.segments[i].arc_to(buf, vars, *seg, self.offsets[i], self.offsets[i+1])?;
+        }
+        self.segments.last().unwrap().format_end(buf, vars, *self.offsets.last().unwrap())?;
+        write!(buf, r#"" />"#)?;
+        Ok(())
     }
 }
 
@@ -104,7 +111,11 @@ impl Segment {
         let p = self.end.basis(in_dir, alpha * outr, 0.0).basis(out_dir, -alpha *inr, 0.0);
         let start = p.basis(in_dir, -l, 0.0);
         let end = p.basis(in_dir, l, 0.0);
-        writeln!(buf, "L {} A {},{1} 0 0 {} {}", start, r, sweep, end)?;
+        writeln!(buf, "L {start} A {r},{r} 0 0 {sweep} {end}",
+                 start=start,
+                 r=r,
+                 sweep=sweep,
+                 end=end)?;
         Ok(())
     }
 
