@@ -1,6 +1,10 @@
+use std::fmt;
 use std::ops::{Add, Sub, Mul, Div, Neg};
 use std::hash::{Hash, Hasher};
+pub use std::f64::consts::PI;
 use ordered_float::OrderedFloat;
+
+pub const TAU: f64 = PI * 2.0;
 
 #[derive(Clone, Copy, Debug)]
 pub enum Expr {
@@ -16,7 +20,7 @@ pub struct Point(pub Scalar, pub Scalar);
 
 impl Point {
     pub fn abs(self) -> Scalar {
-        (self.0 * self.0 + self.1 * self.1).sqrt()
+        self.0.hypot(self.1)
     }
 
     pub fn unit(self) -> Point {
@@ -25,6 +29,18 @@ impl Point {
 
     pub fn perp(self) -> Point {
         Point(self.1, -self.0)
+    }
+
+    pub fn basis(self, dir: Scalar, u: Scalar, v: Scalar) -> Point {
+        let c = dir.cos();
+        let s = dir.sin();
+        self + Point(u * c - v * s, u * s + v * c)
+    }
+}
+
+impl fmt::Display for Point {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}, {}", self.0, self.1)
     }
 }
 
@@ -133,3 +149,9 @@ impl Line {
         }
     }
 }
+
+pub fn mod_tau(theta: Scalar) -> Scalar {
+    let theta = theta % TAU;
+    theta + if theta < 0.0 { TAU } else { 0.0 }
+}
+

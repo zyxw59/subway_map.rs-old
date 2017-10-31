@@ -8,7 +8,7 @@ use route;
 mod errors;
 mod variables;
 
-pub use self::errors::IdentError;
+pub use self::errors::Error;
 pub use self::variables::Variables;
 
 #[derive(Clone, Debug)]
@@ -16,6 +16,17 @@ pub enum Ident {
     Scalar(SIdent),
     Point(PIdent),
     Line(LIdent),
+}
+
+impl fmt::Display for Ident {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        use self::Ident::*;
+        match *self {
+            Scalar(ref id) => id.fmt(f),
+            Point(ref id) => id.fmt(f),
+            Line(ref id) => id.fmt(f),
+        }
+    }
 }
 
 macro_rules! ident {
@@ -33,14 +44,14 @@ macro_rules! ident {
         }
 
         impl FromStr for $type {
-            type Err = IdentError;
+            type Err = Error;
 
             fn from_str(s: &str) -> Result<Self, Self::Err> {
                 lazy_static! {
                     static ref RE: Regex = Regex::new(concat!($prefix_re, r"(\w+)")).unwrap();
                 }
                 RE.captures(s).map_or(
-                    Err(IdentError::new(s, $name)),
+                    Err(Error::ident_type(s, $name)),
                     |caps| Ok($type(String::from(caps.get(1).unwrap().as_str()))))
             }
         }
@@ -55,9 +66,9 @@ ident!{RIdent, "Scalar", "~"}
 pub trait Eval {
     type Output;
 
-    type Ident;
+    type Ident: fmt::Display;
 
-    fn eval(&self, vars: &Variables) -> Self::Output;
+    fn eval(&self, vars: &Variables) -> Result<Self::Output, Box<Error>>;
 }
 
 #[derive(Clone, Debug)]
@@ -72,12 +83,12 @@ impl Eval for Expr {
 
     type Ident = Ident;
 
-    fn eval(&self, vars: &Variables) -> math::Expr {
+    fn eval(&self, vars: &Variables) -> Result<math::Expr, Box<Error>> {
         use self::Expr::*;
         match *self {
-            Scalar(ref x) => math::Expr::Scalar(x.eval(vars)),
-            Point(ref x) => math::Expr::Point(x.eval(vars)),
-            Line(ref x) => math::Expr::Line(x.eval(vars)),
+            Scalar(ref x) => Ok(math::Expr::Scalar(x.eval(vars)?)),
+            Point(ref x) => Ok(math::Expr::Point(x.eval(vars)?)),
+            Line(ref x) => Ok(math::Expr::Line(x.eval(vars)?)),
         }
     }
 }
@@ -101,19 +112,19 @@ impl Eval for Scalar {
 
     type Ident = SIdent;
 
-    fn eval(&self, vars: &Variables) -> math::Scalar {
+    fn eval(&self, vars: &Variables) -> Result<math::Scalar, Box<Error>> {
         use self::Scalar::*;
         match *self {
-            Add(ref a, ref b) => a.eval(vars) + b.eval(vars),
-            Neg(ref a) => - a.eval(vars),
-            Mul(ref a, ref b) => a.eval(vars) * b.eval(vars),
-            Div(ref a, ref b) => a.eval(vars) / b.eval(vars),
-            Less(ref a, ref b) => if a.eval(vars) < b.eval(vars) {1.0} else {0.0},
-            LessEq(ref a, ref b) => if a.eval(vars) <= b.eval(vars) {1.0} else {0.0},
-            Equal(ref a, ref b) => if a.eval(vars) == b.eval(vars) {1.0} else {0.0},
-            Num(x) => x,
-            Ident(ref id) => *vars.get_scalar(id).unwrap(),
-            Macro(ref id, ref args) => vars.get_scalar_macro(id).unwrap().expand(args, vars),
+            Add(ref a, ref b) => Ok(a.eval(vars)? + b.eval(vars)?),
+            Neg(ref a) => Ok(-a.eval(vars)?),
+            Mul(ref a, ref b) => Ok(a.eval(vars)? * b.eval(vars)?),
+            Div(ref a, ref b) => Ok(a.eval(vars)? / b.eval(vars)?),
+            Less(ref a, ref b) => if a.eval(vars)? < b.eval(vars)? {Ok(1.0)} else {Ok(0.0)},
+            LessEq(ref a, ref b) => if a.eval(vars)? <= b.eval(vars)? {Ok(1.0)} else {Ok(0.0)},
+            Equal(ref a, ref b) => if a.eval(vars)? == b.eval(vars)? {Ok(1.0)} else {Ok(0.0)},
+            Num(x) => Ok(x),
+            Ident(ref id) => Ok(*vars.get_scalar(id)?),
+            Macro(ref id, ref args) => vars.get_scalar_macro(id)?.expand(args, vars),
         }
     }
 }
@@ -204,17 +215,17 @@ impl Eval for Point {
 
     type Ident = PIdent;
 
-    fn eval(&self, vars: &Variables) -> math::Point {
+    fn eval(&self, vars: &Variables) -> Result<math::Point, Box<Error>> {
         use self::Point::*;
         match *self {
-            Add(ref a, ref b) => a.eval(vars) + b.eval(vars),
-            Neg(ref a) => -a.eval(vars),
-            Mul(ref a, ref n) => a.eval(vars) * n.eval(vars),
-            Div(ref a, ref n) => a.eval(vars) / n.eval(vars),
-            Pair(ref x, ref y) => math::Point(x.eval(vars), y.eval(vars)),
-            Intersection(ref a, ref b) => a.eval(vars).intersect(b.eval(vars)),
-            Ident(ref id) => *vars.get_point(id).unwrap(),
-            Macro(ref id, ref args) => vars.get_point_macro(id).unwrap().expand(args, vars),
+            Add(ref a, ref b) => Ok(a.eval(vars)? + b.eval(vars)?),
+            Neg(ref a) => Ok(-a.eval(vars)?),
+            Mul(ref a, ref n) => Ok(a.eval(vars)? * n.eval(vars)?),
+            Div(ref a, ref n) => Ok(a.eval(vars)? / n.eval(vars)?),
+            Pair(ref x, ref y) => Ok(math::Point(x.eval(vars)?, y.eval(vars)?)),
+            Intersection(ref a, ref b) => Ok(a.eval(vars)?.intersect(b.eval(vars)?)),
+            Ident(ref id) => Ok(*vars.get_point(id)?),
+            Macro(ref id, ref args) => vars.get_point_macro(id)?.expand(args, vars),
         }
     }
 }
@@ -274,19 +285,19 @@ impl Eval for Line {
 
     type Ident = LIdent;
 
-    fn eval(&self, vars: &Variables) -> math::Line {
+    fn eval(&self, vars: &Variables) -> Result<math::Line, Box<Error>> {
         use self::Line::*;
         match *self {
-            Add(ref l, ref p) => l.eval(vars) + p.eval(vars),
-            Parallel(ref l, ref p) => l.eval(vars).parallel(p.eval(vars)),
-            Perpendicular(ref l, ref p) => l.eval(vars).perpendicular(p.eval(vars)),
-            Offset(ref l, ref s) => l.eval(vars).offset(s.eval(vars)),
-            Vector(ref o, ref v) => math::Line {
-                origin: o.eval(vars),
-                vector: v.eval(vars),
-            },
-            Ident(ref id) => *vars.get_line(id).unwrap(),
-            Macro(ref id, ref args) => vars.get_line_macro(id).unwrap().expand(args, vars),
+            Add(ref l, ref p) => Ok(l.eval(vars)? + p.eval(vars)?),
+            Parallel(ref l, ref p) => Ok(l.eval(vars)?.parallel(p.eval(vars)?)),
+            Perpendicular(ref l, ref p) => Ok(l.eval(vars)?.perpendicular(p.eval(vars)?)),
+            Offset(ref l, ref s) => Ok(l.eval(vars)?.offset(s.eval(vars)?)),
+            Vector(ref o, ref v) => Ok(math::Line {
+                origin: o.eval(vars)?,
+                vector: v.eval(vars)?,
+            }),
+            Ident(ref id) => Ok(*vars.get_line(id)?),
+            Macro(ref id, ref args) => vars.get_line_macro(id)?.expand(args, vars),
         }
     }
 }
@@ -381,15 +392,15 @@ impl Route {
         self
     }
 
-    fn eval(self, vars: &mut Variables) -> route::Route {
+    fn eval(self, vars: &mut Variables) -> Result<route::Route, Box<Error>> {
         let mut r = route::Route::new();
         for (seg, off) in self.segments.iter().zip(self.offsets.iter()) {
-            let seg = seg.eval(vars);
-            let off = off.eval(vars);
+            let seg = seg.eval(vars)?;
+            let off = off.eval(vars)?;
             vars.insert_segment(seg, off);
             r.push(seg, off);
         }
-        r
+        Ok(r)
     }
 }
 
@@ -400,11 +411,11 @@ pub struct Segment {
 }
 
 impl Segment {
-    fn eval(&self, vars: &Variables) -> route::Segment {
-        route::Segment {
-            start: self.start.eval(vars),
-            end: self.end.eval(vars),
-        }
+    fn eval(&self, vars: &Variables) -> Result<route::Segment, Box<Error>> {
+        Ok(route::Segment {
+            start: self.start.eval(vars)?,
+            end: self.end.eval(vars)?,
+        })
     }
 }
 
@@ -416,33 +427,49 @@ pub struct Macro<T: Eval> {
 }
 
 impl<T: Eval> Macro<T> {
-    pub fn expand(&self, args: &Vec<Expr>, vars: &Variables) -> T::Output {
+    pub fn expand(&self,
+                  args: &Vec<Expr>,
+                  vars: &Variables) -> Result<T::Output, Box<Error>> {
         let mut locals = Variables::with_globals(vars);
         if args.len() != self.args.len() {
-            panic!("Incorrect number of arguments to macro (got {}, expected {})",
-            args.len(), self.args.len());
+            Err(Error::macro_args(
+                    format!("{}", self.id).as_ref(),
+                    args.len(),
+                    self.args.len()))?;
         }
         for (id, val) in self.args.iter().zip(args.iter()) {
             match *id {
                 Ident::Scalar(ref id) => {
                     if let Expr::Scalar(ref val) = *val {
-                        locals.insert_scalar(id.clone(), val);
+                        locals.insert_scalar(id.clone(), val)?;
                     } else {
-                        panic!("Argument {:?} is not a scalar", val);
+                        Err(Error::macro_arg_type(
+                                format!("{}", self.id).as_ref(),
+                                format!("{}", id).as_ref(),
+                                "Scalar",
+                                format!("{:?}", val).as_ref()))?;
                     }
                 }
                 Ident::Point(ref id) => {
                     if let Expr::Point(ref val) = *val {
-                        locals.insert_point(id.clone(), val);
+                        locals.insert_point(id.clone(), val)?;
                     } else {
-                        panic!("Argument {:?} is not a point", val);
+                        Err(Error::macro_arg_type(
+                                format!("{}", self.id).as_ref(),
+                                format!("{}", id).as_ref(),
+                                "Point",
+                                format!("{:?}", val).as_ref()))?;
                     }
                 }
                 Ident::Line(ref id) => {
                     if let Expr::Line(ref val) = *val {
-                        locals.insert_line(id.clone(), val);
+                        locals.insert_line(id.clone(), val)?;
                     } else {
-                        panic!("Argument {:?} is not a line", val);
+                        Err(Error::macro_arg_type(
+                                format!("{}", self.id).as_ref(),
+                                format!("{}", id).as_ref(),
+                                "Line",
+                                format!("{:?}", val).as_ref()))?;
                     }
                 }
             }
@@ -463,8 +490,9 @@ pub enum Definition {
 }
 
 impl Definition {
-    pub fn eval(self, vars: &mut Variables) {
-        vars.eval_def(self);
+    pub fn eval(self, vars: &mut Variables) -> Result<(), Box<Error>> {
+        vars.eval_def(self)?;
+        Ok(())
     }
 }
 
@@ -476,13 +504,14 @@ pub enum Statement {
 }
 
 impl Statement {
-    pub fn eval(self, vars: &mut Variables) {
+    pub fn eval(self, vars: &mut Variables) -> Result<(), Box<Error>> {
         use self::Statement::*;
         match self {
-            Definition(d) => d.eval(vars),
-            Command(c) => c.eval(vars),
+            Definition(d) => d.eval(vars)?,
+            Command(c) => c.eval(vars)?,
             None => {},
         };
+        Ok(())
     }
 }
 
@@ -492,17 +521,18 @@ pub enum Command {
 }
 
 impl Command {
-    pub fn eval(self, vars: &mut Variables) {
+    pub fn eval(self, vars: &mut Variables) -> Result<(), Box<Error>> {
         use self::Command::*;
         match self {
             Routes(v, s) => {
                 let v = v.into_iter()
                     .map(|r| {
-                        let route = vars.get_route(&r).unwrap().clone();
+                        let route = vars.get_route(&r)?.clone();
                         let id = r.0;
-                        Cmd::Route(route, id)
-                    }).collect::<Vec<_>>();
+                        Ok(Cmd::Route(route, id))
+                    }).collect::<Result<Vec<_>, Box<Error>>>()?;
                 vars.push_command(Cmd::Group(v, s));
+                Ok(())
             },
         }
     }
