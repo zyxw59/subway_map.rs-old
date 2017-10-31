@@ -5,10 +5,9 @@ use command::Command as Cmd;
 use math;
 use route;
 
-mod errors;
 mod variables;
 
-pub use self::errors::Error;
+use errors::Error;
 pub use self::variables::Variables;
 
 #[derive(Clone, Debug)]

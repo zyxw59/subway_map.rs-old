@@ -7,6 +7,7 @@ use std::io::BufRead;
 
 pub mod grammar;
 pub mod ast;
+pub mod errors;
 pub mod command;
 pub mod math;
 pub mod route;

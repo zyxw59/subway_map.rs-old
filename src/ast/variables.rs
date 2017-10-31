@@ -4,8 +4,8 @@ use command::Command;
 use math;
 use route;
 
+use errors::Error;
 use super::{Definition, Ident, SIdent, PIdent, LIdent, RIdent, Eval, Scalar, Point, Line, Route, Macro};
-use super::errors::Error;
 
 #[derive(Clone, Debug)]
 pub struct Variables<'a> {
