@@ -1,5 +1,6 @@
 use std::fmt;
 use std::str::FromStr;
+use std::error::Error;
 use regex::Regex;
 use command::Command as Cmd;
 use math;
@@ -7,7 +8,7 @@ use route;
 
 mod variables;
 
-use errors::Error;
+use errors;
 pub use self::variables::Variables;
 
 #[derive(Clone, Debug)]
@@ -43,14 +44,14 @@ macro_rules! ident {
         }
 
         impl FromStr for $type {
-            type Err = Error;
+            type Err = errors::Error;
 
             fn from_str(s: &str) -> Result<Self, Self::Err> {
                 lazy_static! {
                     static ref RE: Regex = Regex::new(concat!($prefix_re, r"(\w+)")).unwrap();
                 }
                 RE.captures(s).map_or(
-                    Err(Error::ident_type(s, $name)),
+                    Err(errors::Error::ident_type(s, $name)),
                     |caps| Ok($type(String::from(caps.get(1).unwrap().as_str()))))
             }
         }
@@ -431,7 +432,7 @@ impl<T: Eval> Macro<T> {
                   vars: &Variables) -> Result<T::Output, Box<Error>> {
         let mut locals = Variables::with_globals(vars);
         if args.len() != self.args.len() {
-            Err(Error::macro_args(
+            Err(errors::Error::macro_args(
                     format!("{}", self.id).as_ref(),
                     args.len(),
                     self.args.len()))?;
@@ -442,7 +443,7 @@ impl<T: Eval> Macro<T> {
                     if let Expr::Scalar(ref val) = *val {
                         locals.insert_scalar(id.clone(), val)?;
                     } else {
-                        Err(Error::macro_arg_type(
+                        Err(errors::Error::macro_arg_type(
                                 format!("{}", self.id).as_ref(),
                                 format!("{}", id).as_ref(),
                                 "Scalar",
@@ -453,7 +454,7 @@ impl<T: Eval> Macro<T> {
                     if let Expr::Point(ref val) = *val {
                         locals.insert_point(id.clone(), val)?;
                     } else {
-                        Err(Error::macro_arg_type(
+                        Err(errors::Error::macro_arg_type(
                                 format!("{}", self.id).as_ref(),
                                 format!("{}", id).as_ref(),
                                 "Point",
@@ -464,7 +465,7 @@ impl<T: Eval> Macro<T> {
                     if let Expr::Line(ref val) = *val {
                         locals.insert_line(id.clone(), val)?;
                     } else {
-                        Err(Error::macro_arg_type(
+                        Err(errors::Error::macro_arg_type(
                                 format!("{}", self.id).as_ref(),
                                 format!("{}", id).as_ref(),
                                 "Line",
@@ -517,6 +518,11 @@ impl Statement {
 #[derive(Clone, Debug)]
 pub enum Command {
     Routes(Vec<RIdent>, String),
+    RSep(Scalar),
+    RBase(Scalar),
+    Bounds(Scalar, Scalar, Scalar, Scalar),
+    BoundsPoints(Point, Point),
+    Style(String),
 }
 
 impl Command {
@@ -531,6 +537,34 @@ impl Command {
                         Ok(Cmd::Route(route, id))
                     }).collect::<Result<Vec<_>, Box<Error>>>()?;
                 vars.push_command(Cmd::Group(v, s));
+                Ok(())
+            },
+            RSep(r_sep) => {
+                let r_sep = r_sep.eval(vars)?;
+                vars.r_sep = r_sep;
+                Ok(())
+            },
+            RBase(r_base) => {
+                let r_base = r_base.eval(vars)?;
+                vars.r_base = r_base;
+                Ok(())
+            },
+            Bounds(x0, y0, x1, y1) => {
+                let p0 = math::Point(x0.eval(vars)?, y0.eval(vars)?);
+                let p1 = math::Point(x1.eval(vars)?, y1.eval(vars)?);
+                vars.bounds.0 = p0;
+                vars.bounds.1 = p1;
+                Ok(())
+            },
+            BoundsPoints(p0, p1) => {
+                let p0 = p0.eval(vars)?;
+                let p1 = p1.eval(vars)?;
+                vars.bounds.0 = p0;
+                vars.bounds.1 = p1;
+                Ok(())
+            },
+            Style(s) => {
+                vars.style.push(s);
                 Ok(())
             },
         }

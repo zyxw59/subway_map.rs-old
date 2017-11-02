@@ -14,14 +14,22 @@ Comma<T>: Vec<T> = {
     }
 };
 
+pub Program: Vec<Statement> = {
+    Statement+,
+};
+
 pub Statement: Statement = {
     <Definition> ";" => Statement::Definition(<>),
     <Command> ";" => Statement::Command(<>),
-    => Statement::None,
 };
 
 Command: Command = {
     "\routes" "{" <Comma<RIdent>> "}" <String> => Command::Routes(<>),
+    "\r_sep" <SExpr> => Command::RSep(<>),
+    "\r_base" <SExpr> => Command::RBase(<>),
+    "\bounds" <SExpr> "," <SExpr> "," <SExpr> "," <SExpr> => Command::Bounds(<>),
+    "\bounds" <PExpr> "," <PExpr> => Command::BoundsPoints(<>),
+    "\style" <String> => Command::Style(<>),
 };
 
 Definition: Definition = {

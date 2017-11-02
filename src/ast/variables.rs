@@ -1,10 +1,12 @@
 use std::collections::HashMap;
-use command::Command;
+use std::io::prelude::*;
+use std::error::Error;
 
 use math;
 use route;
+use errors;
 
-use errors::Error;
+use command::Command;
 use super::{Definition, Ident, SIdent, PIdent, LIdent, RIdent, Eval, Scalar, Point, Line, Route, Macro};
 
 #[derive(Clone, Debug)]
@@ -21,6 +23,8 @@ pub struct Variables<'a> {
     globals: Option<&'a Variables<'a>>,
     pub r_sep: f64,
     pub r_base: f64,
+    pub bounds: (math::Point, math::Point),
+    pub style: Vec<String>,
 }
 
 macro_rules! get_typed {
@@ -28,7 +32,7 @@ macro_rules! get_typed {
         pub fn $f(&self, id: &$id_t) -> Result<&$out_t, Box<Error>> {
             self.$m.get(&id).map_or_else(
                 || self.globals.as_ref().map_or(
-                    Err(Box::new(Error::undefined(format!("{}", id).as_ref()))),
+                    Err(errors::Error::undefined(format!("{}", id).as_ref()))?,
                     |g| g.$f(id)),
                 |val| Ok(val))
         }
@@ -46,7 +50,7 @@ macro_rules! insert_typed {
 }
 
 impl<'a> Variables<'a> {
-    pub fn new(r_sep: f64, r_base: f64) -> Variables<'static> {
+    pub fn new() -> Variables<'static> {
         Variables {
             scalars: HashMap::new(),
             points: HashMap::new(),
@@ -58,15 +62,17 @@ impl<'a> Variables<'a> {
             line_macros: HashMap::new(),
             commands: Vec::new(),
             globals: None,
-            r_sep,
-            r_base,
+            r_sep: 0.0,
+            r_base: 0.0,
+            bounds: (math::Point(0.0, 0.0), math::Point(0.0, 0.0)),
+            style: Vec::new(),
         }
     }
 
     pub fn with_globals(globals: &'a Variables) -> Variables<'a> {
         Variables {
             globals: Some(globals),
-            ..Variables::new(0.0, 0.0)
+            ..Variables::new()
         }
     }
 
@@ -96,23 +102,21 @@ impl<'a> Variables<'a> {
         Ok(())
     }
 
-    fn get_segment(&self, seg: &route::Segment) -> Option<&SegmentBase> {
-        self.segments.get(&seg).or(self.segments.get(&seg.reverse()))
-    }
-
-    fn get_segment_mut(&mut self, seg: &route::Segment) -> Option<&mut SegmentBase> {
-        if self.segments.contains_key(seg) {
-            self.segments.get_mut(seg)
-        } else {
-            self.segments.get_mut(&seg.reverse())
-        }
-    }
-
     pub fn insert_segment(&mut self, seg: route::Segment, off: math::Scalar) {
-        if let Some(ref mut base) = self.get_segment_mut(&seg) {
-            base.min_offset = base.min_offset.min(off);
-            base.max_offset = base.max_offset.max(off);
-            return;
+        if self.segments.contains_key(&seg) {
+            let mut base = self.segments.get_mut(&seg);
+            if let Some(ref mut base) = base {
+                base.min_offset = base.min_offset.min(off);
+                base.max_offset = base.max_offset.max(off);
+                return;
+            }
+        } else {
+            let mut base = self.segments.get_mut(&seg.reverse());
+            if let Some(ref mut base) = base {
+                base.min_offset = base.min_offset.min(-off);
+                base.max_offset = base.max_offset.max(-off);
+                return;
+            }
         }
         self.segments.insert(seg, SegmentBase {
             start: seg.start,
@@ -123,11 +127,15 @@ impl<'a> Variables<'a> {
     }
 
     pub fn min_offset(&self, seg: route::Segment) -> Option<math::Scalar> {
-        self.get_segment(&seg).map(|base| base.min_offset)
+        self.segments.get(&seg).map_or(
+            self.segments.get(&seg.reverse()).map(|base| -base.max_offset),
+            |base| Some(base.min_offset))
     }
 
     pub fn max_offset(&self, seg: route::Segment) -> Option<math::Scalar> {
-        self.get_segment(&seg).map(|base| base.max_offset)
+        self.segments.get(&seg).map_or(
+            self.segments.get(&seg.reverse()).map(|base| -base.min_offset),
+            |base| Some(base.max_offset))
     }
 
     pub fn push_command(&mut self, cmd: Command) {
@@ -162,6 +170,27 @@ impl<'a> Variables<'a> {
                 Ok(())
             },
         }
+    }
+
+    pub fn format<W: Write>(&self, w: &mut W) -> Result<(), Box<Error>> {
+        writeln!(w, r#"<?xml version="1.0" encoding="utf-8" ?>"#)?;
+        for s in self.style.iter() {
+            writeln!(w, r#"<?xml-stylesheet type="text/css" href="{}"?>"#, s)?;
+        }
+        writeln!(w, r#"<svg width="{}" height="{}""#, (self.bounds.1).0, (self.bounds.1).1)?;
+        writeln!(w, r#"viewBox="{} {}""#, self.bounds.0, self.bounds.1)?;
+        writeln!(w, r#"xmlns="http://www.w3.org/2000/svg""#)?;
+        writeln!(w, r#"xmlns:xlink="http://www.w3.org/1999/xlink">"#)?;
+        writeln!(w, "<defs>")?;
+        for c in self.commands.iter() {
+            c.format_def(w, self)?;
+        }
+        writeln!(w, "</defs>")?;
+        for c in self.commands.iter() {
+            c.format_use(w, self)?;
+        }
+        writeln!(w, "</svg>")?;
+        Ok(())
     }
 }
 

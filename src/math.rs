@@ -31,10 +31,15 @@ impl Point {
         Point(self.1, -self.0)
     }
 
-    pub fn basis(self, dir: Scalar, u: Scalar, v: Scalar) -> Point {
-        let c = dir.cos();
-        let s = dir.sin();
-        self + Point(u * c - v * s, u * s + v * c)
+    pub fn basis(self, vector: Point, u: Scalar, v: Scalar) -> Point {
+        let Point(c, s) = vector.unit();
+        self + Point(u * c + v * s, u * s - v * c)
+    }
+
+    pub fn angle(self, other: Point) -> Scalar {
+        let dot = self.0 * other.0 + self.1 * other.1;
+        let cross = self.0 * other.1 - self.1 * other.0;
+        mod_tau(-cross.atan2(dot))
     }
 }
 

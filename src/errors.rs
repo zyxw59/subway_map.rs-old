@@ -43,6 +43,20 @@ impl Error {
             cause: None,
         }
     }
+
+    pub fn from_val<T: fmt::Debug>(val: T) -> Error {
+        Error {
+            details: format!("{:?}", val),
+            cause: None,
+        }
+    }
+
+    pub fn from_str(details: &str) -> Error {
+        Error {
+            details: String::from(details),
+            cause: None,
+        }
+    }
 }
 
 impl fmt::Display for Error {

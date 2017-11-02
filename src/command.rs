@@ -1,5 +1,4 @@
 use std::error::Error;
-use std::io::BufWriter;
 
 use std::io::prelude::*;
 
@@ -14,7 +13,7 @@ pub enum Command {
 
 impl Command {
     pub fn format_def<W: Write>(&self,
-                          buf: &mut BufWriter<W>,
+                          buf: &mut W,
                           vars: &Variables) -> Result<(), Box<Error>> {
         use self::Command::*;
         match *self {
@@ -30,12 +29,12 @@ impl Command {
         Ok(())
     }
     pub fn format_use<W: Write>(&self,
-                          buf: &mut BufWriter<W>,
+                          buf: &mut W,
                           vars: &Variables) -> Result<(), Box<Error>> {
         use self::Command::*;
         match *self {
             Group(ref v, ref s) => {
-                writeln!(buf, r#"<g class="{}">"#, s)?;
+                writeln!(buf, r#"<g class="g_{}">"#, s)?;
                 writeln!(buf, r#"<g class="bg">"#)?;
                 for ref c in v {
                     c.format_use(buf, vars)?;
@@ -46,9 +45,10 @@ impl Command {
                     c.format_use(buf, vars)?;
                 }
                 writeln!(buf, "</g>")?;
+                writeln!(buf, "</g>")?;
             },
             Route(_, ref s) => {
-                writeln!(buf, r#"<use xlink:href"{0}" class="{0}"/>"#, s)?;
+                writeln!(buf, r##"<use xlink:href="#{0}" class="route r_{0}"/>"##, s)?;
             }
         }
         Ok(())

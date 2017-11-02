@@ -60,8 +60,8 @@
 ~c = @8av_145st ', @8av_53st ', @8av_14st ', @8av_4st '1, @church_chambers;
 ~e = @53st_2av '-1, @8av_53st ', @8av_14st ', @8av_4st '1, @church_chambers;
 
-~b = @8av_145 '-1, @8av_53st ', @6av_53st ', @6av_4st ', @houston_2av;
-~d = @8av_145 '-1, @8av_53st ', @6av_53st ', @6av_4st ', @houston_2av;
+~b = @8av_145st '-1, @8av_53st ', @6av_53st ', @6av_4st ', @houston_2av;
+~d = @8av_145st '-1, @8av_53st ', @6av_53st ', @6av_4st ', @houston_2av;
 ~f = @63st_2av ', @6av_63st ', @6av_53st ', @6av_4st ', @houston_2av;
 ~m = @53st_2av ', @6av_53st ', @6av_4st ', @houston_2av;
 
@@ -74,3 +74,8 @@
 \routes{~a, ~c, ~e} "8av";
 \routes{~b, ~d, ~f, ~m} "6av";
 \routes{~n, ~q} "bdwy";
+
+\bounds 0, 0, 2000, 3000;
+\style "nyc.css";
+\r_base 30;
+\r_sep 6;

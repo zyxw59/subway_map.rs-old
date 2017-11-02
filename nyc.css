@@ -1,0 +1,49 @@
+.g_8av {stroke: #06b}
+.g_7av {stroke: #e34}
+.g_6av {stroke: #f82}
+.g_bdwy {stroke: #fd2}
+.g_lex_av {stroke: #095}
+.g_flushing {stroke: #939}
+.g_canarsie {stroke: #999}
+.g_nassau_st {stroke: #a71}
+.g_crosstown {stroke: #7c4}
+.g_shuttle {stroke: #666}
+
+.route {
+    fill: None;
+    stroke-width: 5px;
+}
+
+.bg > .route {
+    fill: None;
+    stroke-width: 6px;
+    stroke: white;
+}
+
+.g_bdwy > .bg > .route {
+    stroke-width: 6px;
+    stroke: black;
+}
+
+.label {
+    font-size:10pt;
+    font-family:Helvetica;
+}
+
+.label.bg {
+    fill: None;
+    stroke-width: 2px;
+    stroke: white;
+}
+
+.express {
+    fill: white;
+    stroke-width: 2px;
+    stroke: black;
+}
+
+.local {
+    fill: black;
+    stroke-width: 1px;
+    stroke: white;
+}
