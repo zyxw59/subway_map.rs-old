@@ -1,4 +1,5 @@
 use std::fmt;
+use std::cmp::{Ordering};
 use std::ops::{Add, Sub, Mul, Div, Neg};
 use std::hash::{Hash, Hasher};
 pub use std::f64::consts::PI;
@@ -40,6 +41,12 @@ impl Point {
         let dot = self.0 * other.0 + self.1 * other.1;
         let cross = self.0 * other.1 - self.1 * other.0;
         mod_tau(-cross.atan2(dot))
+    }
+
+    pub fn cmp(self, other: Point) -> (Ordering, Ordering) {
+        let x = OrderedFloat(self.0).cmp(&OrderedFloat(other.0));
+        let y = OrderedFloat(self.1).cmp(&OrderedFloat(other.1));
+        (x, y)
     }
 }
 
@@ -135,7 +142,7 @@ impl Line {
 
     pub fn offset(self, offset: Scalar) -> Line {
         Line {
-            origin: self.origin + self.vector.perp().unit() * offset,
+            origin: self.origin.basis(self.vector, 0.0, offset),
             vector: self.vector,
         }
     }
@@ -151,6 +158,13 @@ impl Line {
         Line {
             origin: p,
             vector: self.vector.perp(),
+        }
+    }
+
+    pub fn between(a: Point, b: Point) -> Line {
+        Line {
+            origin: a,
+            vector: b - a,
         }
     }
 }

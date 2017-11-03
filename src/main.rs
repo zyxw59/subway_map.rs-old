@@ -15,6 +15,7 @@ pub mod errors;
 pub mod command;
 pub mod math;
 pub mod route;
+pub mod stop;
 
 macro_rules! raise {
     ($e: expr) => (Err(::std::convert::From::from($e)));

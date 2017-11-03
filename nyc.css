@@ -10,12 +10,12 @@
 .g_shuttle {stroke: #666}
 
 .route {
-    fill: None;
+    fill: none;
     stroke-width: 5px;
 }
 
 .bg > .route {
-    fill: None;
+    fill: none;
     stroke-width: 6px;
     stroke: white;
 }

@@ -5,6 +5,7 @@ use regex::Regex;
 use command::Command as Cmd;
 use math;
 use route;
+use stop;
 
 mod variables;
 
@@ -406,8 +407,8 @@ impl Route {
 
 #[derive(Clone, Debug)]
 pub struct Segment {
-    start: Point,
-    end: Point,
+    pub start: Point,
+    pub end: Point,
 }
 
 impl Segment {
@@ -417,6 +418,53 @@ impl Segment {
             end: self.end.eval(vars)?,
         })
     }
+
+    fn line(self) -> Line {
+        Line::between(self.start, self.end)
+    }
+}
+
+#[derive(Clone, Debug)]
+pub enum Stop {
+    Line(Segment, Line, LabelPos, String),
+    Segment(Segment, Segment, LabelPos, LabelPos, String),
+}
+
+impl Stop {
+    pub fn eval(&self, vars: &Variables) -> Result<stop::Stop, Box<Error>> {
+        use self::Stop::*;
+        match *self {
+            Line(ref seg, ref line, lp, ref label) => {
+                Ok(stop::Stop::Line(
+                        seg.eval(vars)?,
+                        line.eval(vars)?,
+                        lp,
+                        label.clone()))
+            },
+            Segment(ref a, ref b, pos_a, pos_b, ref label) => {
+                Ok(stop::Stop::Segment(
+                        a.eval(vars)?,
+                        b.eval(vars)?,
+                        pos_a,
+                        pos_b,
+                        label.clone()))
+            },
+        }
+    }
+
+    pub fn perpendicular(
+        seg: Segment,
+        p: Point,
+        pos: LabelPos,
+        label: String) -> Stop {
+        Stop::Line(seg.clone(), seg.line().perpendicular(p), pos, label)
+    }
+}
+
+#[derive(Clone, Copy, Debug)]
+pub enum LabelPos {
+    Plus,
+    Minus,
 }
 
 #[derive(Clone, Debug)]
@@ -499,6 +547,7 @@ impl Definition {
 #[derive(Clone, Debug)]
 pub enum Statement {
     Definition(Definition),
+    Setup(Setup),
     Command(Command),
     None,
 }
@@ -508,7 +557,8 @@ impl Statement {
         use self::Statement::*;
         match self {
             Definition(d) => d.eval(vars)?,
-            Command(c) => c.eval(vars)?,
+            Setup(s) => s.eval(vars)?,
+            Command(c) => c.eval_push(vars)?,
             None => {},
         };
         Ok(())
@@ -516,8 +566,7 @@ impl Statement {
 }
 
 #[derive(Clone, Debug)]
-pub enum Command {
-    Routes(Vec<RIdent>, String),
+pub enum Setup {
     RSep(Scalar),
     RBase(Scalar),
     Bounds(Scalar, Scalar, Scalar, Scalar),
@@ -525,10 +574,61 @@ pub enum Command {
     Style(String),
 }
 
-impl Command {
+impl Setup {
     pub fn eval(self, vars: &mut Variables) -> Result<(), Box<Error>> {
+        use self::Setup::*;
+        match self {
+            RSep(r_sep) => {
+                let r_sep = r_sep.eval(vars)?;
+                vars.r_sep = r_sep;
+            },
+            RBase(r_base) => {
+                let r_base = r_base.eval(vars)?;
+                vars.r_base = r_base;
+            },
+            Bounds(x0, y0, x1, y1) => {
+                let p0 = math::Point(x0.eval(vars)?, y0.eval(vars)?);
+                let p1 = math::Point(x1.eval(vars)?, y1.eval(vars)?);
+                vars.bounds.0 = p0;
+                vars.bounds.1 = p1;
+            },
+            BoundsPoints(p0, p1) => {
+                let p0 = p0.eval(vars)?;
+                let p1 = p1.eval(vars)?;
+                vars.bounds.0 = p0;
+                vars.bounds.1 = p1;
+            },
+            Style(s) => {
+                vars.style.push(s);
+            },
+        };
+        Ok(())
+    }
+}
+
+#[derive(Clone, Debug)]
+pub enum Command {
+    Group(Vec<Command>, String),
+    Routes(Vec<RIdent>, String),
+    Stop(Stop, String),
+}
+
+impl Command {
+    pub fn eval_push(self, vars: &mut Variables) -> Result<(), Box<Error>> {
+        let cmd = self.eval(vars)?;
+        vars.push_command(cmd);
+        Ok(())
+    }
+
+    fn eval(self, vars: &mut Variables) -> Result<Cmd, Box<Error>> {
         use self::Command::*;
         match self {
+            Group(v, s) => {
+                let v = v.into_iter()
+                    .map(|c| c.eval(vars))
+                    .collect::<Result<Vec<_>, Box<Error>>>()?;
+                Ok(Cmd::Group(v, s))
+            }
             Routes(v, s) => {
                 let v = v.into_iter()
                     .map(|r| {
@@ -536,36 +636,10 @@ impl Command {
                         let id = r.0;
                         Ok(Cmd::Route(route, id))
                     }).collect::<Result<Vec<_>, Box<Error>>>()?;
-                vars.push_command(Cmd::Group(v, s));
-                Ok(())
+                Ok(Cmd::Group(v, s))
             },
-            RSep(r_sep) => {
-                let r_sep = r_sep.eval(vars)?;
-                vars.r_sep = r_sep;
-                Ok(())
-            },
-            RBase(r_base) => {
-                let r_base = r_base.eval(vars)?;
-                vars.r_base = r_base;
-                Ok(())
-            },
-            Bounds(x0, y0, x1, y1) => {
-                let p0 = math::Point(x0.eval(vars)?, y0.eval(vars)?);
-                let p1 = math::Point(x1.eval(vars)?, y1.eval(vars)?);
-                vars.bounds.0 = p0;
-                vars.bounds.1 = p1;
-                Ok(())
-            },
-            BoundsPoints(p0, p1) => {
-                let p0 = p0.eval(vars)?;
-                let p1 = p1.eval(vars)?;
-                vars.bounds.0 = p0;
-                vars.bounds.1 = p1;
-                Ok(())
-            },
-            Style(s) => {
-                vars.style.push(s);
-                Ok(())
+            Stop(st, id) => {
+                Ok(Cmd::Stop(st.eval(vars)?, id))
             },
         }
     }

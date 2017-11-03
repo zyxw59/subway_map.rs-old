@@ -79,6 +79,7 @@ L 330, 1419.3803331527988 A 30,30 0 0 0 342.79612966910014, 1443.95729076837
 L 503.1195861400287, 1556.18371029802 A 30,30 0 0 1 513.3796150693329, 1568.6886242827322
 L 550, 1652
 " />
+<text x="214" y="1339.2505605208967" id="s8av59st" text-anchor="end" dominant-baseline="hanging" >Columbus Circle</text>
 </defs>
 <g class="g_7av">
 <g class="bg">
@@ -132,4 +133,5 @@ L 550, 1652
 <use xlink:href="#q" class="route r_q"/>
 </g>
 </g>
+<use xlink:href="#s8av59st" class="stop s_8av59st"/>
 </svg>

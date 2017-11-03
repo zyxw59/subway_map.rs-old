@@ -1,5 +1,23 @@
 use std::str::FromStr;
-use ast::{Statement, Command, Definition, Expr, Scalar, Point, Line, Route, SIdent, PIdent, LIdent, RIdent, Ident};
+use ast::{
+    Statement,
+    Setup,
+    Command,
+    Definition,
+    Segment,
+    Stop,
+    LabelPos,
+    Expr,
+    Scalar,
+    Point,
+    Line,
+    Route,
+    SIdent,
+    PIdent,
+    LIdent,
+    RIdent,
+    Ident,
+};
 
 grammar;
 
@@ -21,15 +39,36 @@ pub Program: Vec<Statement> = {
 pub Statement: Statement = {
     <Definition> ";" => Statement::Definition(<>),
     <Command> ";" => Statement::Command(<>),
+    <Setup> ";" => Statement::Setup(<>),
+};
+
+Setup: Setup = {
+    "\r_sep" <SExpr> => Setup::RSep(<>),
+    "\r_base" <SExpr> => Setup::RBase(<>),
+    "\bounds" <SExpr> "," <SExpr> "," <SExpr> "," <SExpr> => Setup::Bounds(<>),
+    "\bounds" <PExpr> "," <PExpr> => Setup::BoundsPoints(<>),
+    "\style" <String> => Setup::Style(<>),
 };
 
 Command: Command = {
+    "\group" "{" <Comma<Command>> "}" <String> => Command::Group(<>),
     "\routes" "{" <Comma<RIdent>> "}" <String> => Command::Routes(<>),
-    "\r_sep" <SExpr> => Command::RSep(<>),
-    "\r_base" <SExpr> => Command::RBase(<>),
-    "\bounds" <SExpr> "," <SExpr> "," <SExpr> "," <SExpr> => Command::Bounds(<>),
-    "\bounds" <PExpr> "," <PExpr> => Command::BoundsPoints(<>),
-    "\style" <String> => Command::Style(<>),
+    "\stop" <Stop> <String> => Command::Stop(<>),
+};
+
+Segment: Segment = {
+    <start:PExpr> "'" "," <end:PExpr> => Segment{<>},
+};
+
+Stop: Stop = {
+    <Segment> "&" <LExpr> "{" <LabelPos> "}" <String> => Stop::Line(<>),
+    <Segment> "&" <Segment> "{" <LabelPos> <LabelPos> "}" <String> => Stop::Segment(<>),
+    <Segment> ":" <PExpr> "{" <LabelPos> "}" <String> => Stop::perpendicular(<>),
+};
+
+LabelPos: LabelPos = {
+    "+" => LabelPos::Plus,
+    "-" => LabelPos::Minus,
 };
 
 Definition: Definition = {
@@ -113,7 +152,7 @@ LFactor: Line = {
 };
 
 LTerm: Line = {
-    <PTerm> "--" <PTerm> => Line::between(<>),
+    <PTerm> "<>" <PTerm> => Line::between(<>),
     <PTerm> "->" <PTerm> => Line::vector(<>),
     "(" <LExpr> ")",
     <LIdent> => Line::Ident(<>),

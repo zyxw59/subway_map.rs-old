@@ -1,6 +1,8 @@
 use std::error;
 use std::fmt;
 
+use route;
+
 #[derive(Debug)]
 pub struct Error {
     details: String,
@@ -40,6 +42,13 @@ impl Error {
                           arg_id, macro_id, type_, val);
         Error {
             details,
+            cause: None,
+        }
+    }
+
+    pub fn segment(seg: route::Segment) -> Error {
+        Error {
+            details: format!("Segment {:?} not defined", seg),
             cause: None,
         }
     }
